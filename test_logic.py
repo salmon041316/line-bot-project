@@ -9,39 +9,48 @@ from linebot.models import MessageEvent, LocationMessage, TextSendMessage, TextM
 
 app = Flask(__name__)
 
-# ================= 1. 金鑰密鑰設定 (修正為讀取雲端環境變數) =================
-# 改用 os.getenv 來抓取你在 Render 後台設定的 Environment Variables
+# ================= 1. 金鑰密鑰設定 (讀取雲端環境變數) =================
 LINE_CHANNEL_SECRET = os.getenv('LINE_CHANNEL_SECRET')
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# ================= 2. 核心大腦（公廁距離演算法） =================
-def find_nearest_toilets_shuangbei(user_lat, user_lon, csv_file='toilets.csv'):
-    toilets = []
-    with open(csv_file, mode='r', encoding='utf-8-sig') as f:
+# ================= 2. 核心大腦（記憶體極速優化版） =================
+# 伺服器開機時，先預載雙北廁所資料到大腦（只做一次）
+toilets_data = []
+try:
+    with open('toilets.csv', mode='r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            try:
-                address = row['address']
-                # 自動篩選雙北
-                if '台北' in address or '臺北' in address or '新北' in address:
-                    t_lat = float(row['latitude'])
-                    t_lon = float(row['longitude'])
-                    t_name = row['name']
-                    
-                    dist = geodesic((user_lat, user_lon), (t_lat, t_lon)).kilometers
-                    toilets.append({
-                        'name': t_name,
-                        'address': address,
-                        'distance': round(dist, 2)
-                    })
-            except Exception as e:
-                continue
+            address = row['address']
+            # 過濾雙北
+            if '台北' in address or '臺北' in address or '新北' in address:
+                toilets_data.append({
+                    'name': row['name'],
+                    'address': address,
+                    'lat': float(row['latitude']),
+                    'lon': float(row['longitude'])
+                })
+except Exception as e:
+    print(f"讀取 CSV 發生錯誤: {e}")
 
-    toilets.sort(key=lambda x: x['distance'])
-    return toilets[:5] # 取最近的 5 間
+# 當使用者傳定位時，直接從大腦算距離
+def find_nearest_toilets_shuangbei(user_lat, user_lon):
+    results = []
+    for t in toilets_data:
+        try:
+            dist = geodesic((user_lat, user_lon), (t['lat'], t['lon'])).kilometers
+            results.append({
+                'name': t['name'],
+                'address': t['address'],
+                'distance': round(dist, 2)
+            })
+        except Exception:
+            continue
+
+    results.sort(key=lambda x: x['distance'])
+    return results[:5] 
 
 # ================= 3. LINE 伺服器通訊接口 (Webhook) =================
 @app.route("/callback", methods=['POST'])
@@ -54,17 +63,14 @@ def callback():
         abort(400)
     return 'OK'
 
-# ================= 4. 核心：當手機傳送「位置資訊」進來時 =================
+# ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
 def handle_location(event):
-    #核心 A：自動抓取使用者手機傳來的精準經緯度
     user_lat = event.message.latitude
     user_lon = event.message.longitude
     
-    #核心 B：丟進大腦計算最近的 5 個雙北公廁
     results = find_nearest_toilets_shuangbei(user_lat, user_lon)
     
-    #核心 C：把結果包裝成文字，準備回傳給使用者的 LINE
     if not results:
         reply_text = "抱歉，目前在您的附近找不到雙北地區的公共廁所資訊。"
     else:
@@ -75,20 +81,18 @@ def handle_location(event):
             reply_text += f"   距離：約 {t['distance']} 公里\n"
             reply_text += "------------------------\n"
             
-    #核心 D：將訊息發送回手機端
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=reply_text.strip())
     )
 
-# ================= 5. 新增：當手機傳送「文字」進來時 =================
+# ================= 5. 當手機傳送「文字」進來時 =================
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text(event):
     user_text = event.message.text
     
-    # 如果使用者點擊了選單，送出「找廁所」這三個字
+    # 我們的 Python 雲端大腦「只」處理找廁所的功能
     if user_text == '找廁所':
-        # 建立一個帶有「快速回覆 (Quick Reply)」按鈕的訊息
         reply_msg = TextSendMessage(
             text="請點擊下方按鈕，分享您的位置給我！",
             quick_reply=QuickReply(
@@ -100,13 +104,6 @@ def handle_text(event):
             )
         )
         line_bot_api.reply_message(event.reply_token, reply_msg)
-        
-    else:
-        # 如果使用者打了其他字，提醒他按選單
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="如果您想找最近的公廁，請點擊下方選單的「找廁所」按鈕喔！")
-        )
 
 if __name__ == "__main__":
     app.run(port=5000)
