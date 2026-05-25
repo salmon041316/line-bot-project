@@ -16,7 +16,7 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# ================= 2. 核心大腦（記憶體極速優化版） =================
+# ================= 2. 核心大腦 =================
 # 伺服器開機時，先預載雙北廁所資料到大腦（只做一次）
 toilets_data = []
 try:
@@ -44,7 +44,7 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
             results.append({
                 'name': t['name'],
                 'address': t['address'],
-                'distance': int(dist * 1000) # 乘以 1000 轉成公尺，用 int() 去掉小數點
+                'distance': int(dist * 1000) # 轉成公尺，用 int() 去掉小數點
             })
         except Exception:
             continue
@@ -54,7 +54,7 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
 
 # ================= 3. LINE 伺服器通訊接口 (Webhook) =================
 
-@app.route("/")  # 新增：專門給網路鬧鐘敲門用的首頁
+@app.route("/")  # 新增：專門給UptimeRobot敲門用的
 def home():
     return "Hello! LINE Bot is alive!"
 
@@ -71,7 +71,7 @@ def callback():
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
 def handle_location(event):
-    # 步驟 A：偷偷抓取使用者的專屬 ID (做資料庫「收藏」功能的重要關鍵！)
+    # 步驟 A：抓取使用者的 ID (做資料庫「收藏」功能的重要關鍵)
     user_id = event.source.user_id
     
     # 步驟 B：大腦開始運算前，先用 Push Message 推播「請稍等」的提示
@@ -80,7 +80,7 @@ def handle_location(event):
         TextSendMessage(text="抓取定位資料及廁所資料中...\n請稍等")
     )
 
-    # 步驟 C：開始原本的辛苦計算
+    # 步驟 C：開始計算
     user_lat = event.message.latitude
     user_lon = event.message.longitude
     
@@ -94,7 +94,7 @@ def handle_location(event):
             reply_text += f"{i}. 【{t['name']}】\n"
             reply_text += f"   地址：{t['address']}\n"
             reply_text += f"   距離：約 {t['distance']} 公尺\n"
-            reply_text += "------------------------\n"
+            reply_text += ".. 𖥧 𖥧 𖧧 ˒˒. . 𖡼.𖤣𖥧 ⠜ . . 𖥧 𖥧 𖧧 ˒˒. . 𖡼.𖤣𖥧\n"
             
     # 步驟 D：算完之後，用 Reply Token 把結果傳出去
     line_bot_api.reply_message(
