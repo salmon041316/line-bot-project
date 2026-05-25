@@ -53,6 +53,11 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
     return results[:5] 
 
 # ================= 3. LINE 伺服器通訊接口 (Webhook) =================
+
+@app.route("/")  # 新增：專門給網路鬧鐘敲門用的首頁
+def home():
+    return "Hello! LINE Bot is alive!"
+
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers['X-Line-Signature']
