@@ -9,9 +9,10 @@ from linebot.models import MessageEvent, LocationMessage, TextSendMessage
 
 app = Flask(__name__)
 
-# ================= 1. 金鑰密鑰設定（等組員貼給你） =================
-LINE_CHANNEL_SECRET = '76cca12c423b8d34432f38c3a07f490b'
-LINE_CHANNEL_ACCESS_TOKEN = 'kHK6WHMfFUXM82vP29eoczpIB8QNKuZ2pbgYHcu19Oqfsd6CvLTRlRUXMZGxFtISzzwkwyOVE8uy0XcA79pyK+YzS1BbHhHKl4JBq7hhgTtYXpE2J8FNwSDSJY+JuWQde20HfZTiHU8yc6OZvxZ7UAdB04t89/1O/w1cDnyilFU='
+# ================= 1. 金鑰密鑰設定 (修正為讀取雲端環境變數) =================
+# 改用 os.getenv 來抓取你在 Render 後台設定的 Environment Variables
+LINE_CHANNEL_SECRET = os.getenv('LINE_CHANNEL_SECRET')
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
@@ -25,7 +26,7 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon, csv_file='toilets.csv'):
             try:
                 address = row['address']
                 # 自動篩選雙北
-                if '台北' in address or '臺北' in address or '新切' in address or '新北' in address:
+                if '台北' in address or '臺北' in address or '新北' in address:
                     t_lat = float(row['latitude'])
                     t_lon = float(row['longitude'])
                     t_name = row['name']
@@ -40,7 +41,7 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon, csv_file='toilets.csv'):
                 continue
 
     toilets.sort(key=lambda x: x['distance'])
-    return toilets[:5] # 取最近的 5 間，手機畫面比較好閱讀
+    return toilets[:5] # 取最近的 5 間
 
 # ================= 3. LINE 伺服器通訊接口 (Webhook) =================
 @app.route("/callback", methods=['POST'])
