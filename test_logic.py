@@ -10,8 +10,8 @@ from linebot.models import MessageEvent, LocationMessage, TextSendMessage
 app = Flask(__name__)
 
 # ================= 1. 金鑰密鑰設定（等組員貼給你） =================
-LINE_CHANNEL_SECRET = 'YOUR_CHANNEL_SECRET'
-LINE_CHANNEL_ACCESS_TOKEN = 'YOUR_CHANNEL_ACCESS_TOKEN'
+LINE_CHANNEL_SECRET = '76cca12c423b8d34432f38c3a07f490b'
+LINE_CHANNEL_ACCESS_TOKEN = 'kHK6WHMfFUXM82vP29eoczpIB8QNKuZ2pbgYHcu19Oqfsd6CvLTRlRUXMZGxFtISzzwkwyOVE8uy0XcA79pyK+YzS1BbHhHKl4JBq7hhgTtYXpE2J8FNwSDSJY+JuWQde20HfZTiHU8yc6OZvxZ7UAdB04t89/1O/w1cDnyilFU='
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
