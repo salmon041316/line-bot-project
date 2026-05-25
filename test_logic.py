@@ -71,6 +71,16 @@ def callback():
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
 def handle_location(event):
+    # 步驟 A：偷偷抓取使用者的專屬 ID (做資料庫「收藏」功能的重要關鍵！)
+    user_id = event.source.user_id
+    
+    # 步驟 B：大腦開始運算前，先用 Push Message 推播「請稍等」的提示
+    line_bot_api.push_message(
+        user_id,
+        TextSendMessage(text="抓取定位資料及廁所資料中...\n請稍等")
+    )
+
+    # 步驟 C：開始原本的辛苦計算
     user_lat = event.message.latitude
     user_lon = event.message.longitude
     
@@ -86,6 +96,7 @@ def handle_location(event):
             reply_text += f"   距離：約 {t['distance']} 公里\n"
             reply_text += "------------------------\n"
             
+    # 步驟 D：算完之後，用 Reply Token 把結果傳出去
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=reply_text.strip())
