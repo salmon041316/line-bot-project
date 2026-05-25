@@ -87,13 +87,13 @@ def handle_location(event):
     results = find_nearest_toilets_shuangbei(user_lat, user_lon)
     
     if not results:
-        reply_text = "抱歉，目前在您的附近找不到雙北地區的公共廁所資訊。"
+        reply_text = "抱歉，目前在您的附近找不到公共廁所資訊。"
     else:
         reply_text = "為您找到距離最近的 5 個雙北公廁：\n\n"
         for i, t in enumerate(results, 1):
             reply_text += f"{i}. 【{t['name']}】\n"
-            reply_text += f"   地址：{t['address']}\n"
-            reply_text += f"   距離：約 {t['distance']} 公尺\n"
+            reply_text += f"   🚽地址：{t['address']}\n"
+            reply_text += f"   📍距離：約 {t['distance']} 公尺\n"
             reply_text += ".. 𖥧 𖥧 𖧧 ˒˒. . 𖡼.𖤣𖥧 ⠜ . . 𖥧 𖥧 𖧧 ˒˒. . 𖡼.𖤣𖥧\n"
             
     # 步驟 D：算完之後，用 Reply Token 把結果傳出去
@@ -110,7 +110,7 @@ def handle_text(event):
     # 處理找廁所的功能
     if user_text == '找廁所':
         reply_msg = TextSendMessage(
-            text="請點擊下方按鈕，分享您的位置給我！",
+            text=" 👇請點擊下方按鈕，分享您的位置給我",
             quick_reply=QuickReply(
                 items=[
                     QuickReplyButton(
