@@ -5,7 +5,7 @@ from geopy.distance import geodesic
 
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, LocationMessage, TextSendMessage
+from linebot.models import MessageEvent, LocationMessage, TextSendMessage, TextMessage, QuickReply, QuickReplyButton, LocationAction
 
 app = Flask(__name__)
 
@@ -80,6 +80,33 @@ def handle_location(event):
         event.reply_token,
         TextSendMessage(text=reply_text.strip())
     )
+
+# ================= 5. 新增：當手機傳送「文字」進來時 =================
+@handler.add(MessageEvent, message=TextMessage)
+def handle_text(event):
+    user_text = event.message.text
+    
+    # 如果使用者點擊了選單，送出「找廁所」這三個字
+    if user_text == '找廁所':
+        # 建立一個帶有「快速回覆 (Quick Reply)」按鈕的訊息
+        reply_msg = TextSendMessage(
+            text="請點擊下方按鈕，分享您的位置給我！",
+            quick_reply=QuickReply(
+                items=[
+                    QuickReplyButton(
+                        action=LocationAction(label="傳送我的位置")
+                    )
+                ]
+            )
+        )
+        line_bot_api.reply_message(event.reply_token, reply_msg)
+        
+    else:
+        # 如果使用者打了其他字，提醒他按選單
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="如果您想找最近的公廁，請點擊下方選單的「找廁所」按鈕喔！")
+        )
 
 if __name__ == "__main__":
     app.run(port=5000)
