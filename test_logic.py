@@ -44,7 +44,7 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
             results.append({
                 'name': t['name'],
                 'address': t['address'],
-                'distance': round(dist, 2)
+                'distance': int(dist * 1000) # 乘以 1000 轉成公尺，用 int() 去掉小數點
             })
         except Exception:
             continue
@@ -93,7 +93,7 @@ def handle_location(event):
         for i, t in enumerate(results, 1):
             reply_text += f"{i}. 【{t['name']}】\n"
             reply_text += f"   地址：{t['address']}\n"
-            reply_text += f"   距離：約 {t['distance']} 公里\n"
+            reply_text += f"   距離：約 {t['distance']} 公尺\n"
             reply_text += "------------------------\n"
             
     # 步驟 D：算完之後，用 Reply Token 把結果傳出去
@@ -107,7 +107,7 @@ def handle_location(event):
 def handle_text(event):
     user_text = event.message.text
     
-    # 我們的 Python 雲端大腦「只」處理找廁所的功能
+    # 處理找廁所的功能
     if user_text == '找廁所':
         reply_msg = TextSendMessage(
             text="請點擊下方按鈕，分享您的位置給我！",
