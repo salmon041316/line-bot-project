@@ -75,10 +75,12 @@ def handle_location(event):
     user_id = event.source.user_id
     
     # 步驟 B：大腦開始運算前，先用 Push Message 推播「請稍等」的提示
+    '''
     line_bot_api.push_message(
         user_id,
         TextSendMessage(text="抓取定位資料及廁所資料中...\n請稍等")
     )
+    '''
 
     # 步驟 C：開始計算
     user_lat = event.message.latitude
