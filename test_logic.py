@@ -1,7 +1,7 @@
 import os
 import csv
 from flask import Flask, request, abort
-from geopy.distance import geodesic
+from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
@@ -40,7 +40,7 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
     results = []
     for t in toilets_data:
         try:
-            dist = geodesic((user_lat, user_lon), (t['lat'], t['lon'])).kilometers
+            dist = great_circle((user_lat, user_lon), (t['lat'], t['lon'])).kilometers
             results.append({
                 'name': t['name'],
                 'address': t['address'],
