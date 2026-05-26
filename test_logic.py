@@ -94,7 +94,7 @@ def handle_location(event):
             reply_text += f"{i}. 【{t['name']}】\n"
             reply_text += f"   🚽地址：{t['address']}\n"
             reply_text += f"   📍距離：約 {t['distance']} 公尺\n"
-            reply_text += ".. 𖥧 𖥧 𖧧 ˒˒. . 𖡼.𖤣𖥧 ⠜ . . 𖥧 𖥧 𖧧 ˒˒. . 𖡼.𖤣𖥧\n"
+            reply_text += ".. 𖥧 𖥧 𖧧 ˒˒. . 𖡼.𖤣𖥧 ⠜ . . 𖥧 𖥧 𖧧 ˒˒. .\n"
             
     # 步驟 D：算完之後，用 Reply Token 把結果傳出去
     line_bot_api.reply_message(
