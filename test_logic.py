@@ -24,8 +24,9 @@ try:
         reader = csv.DictReader(f)
         for row in reader:
             address = row['address']
-            # 過濾雙北
-            if '台北' in address or '臺北' in address or '新北' in address:
+            
+            # 嚴格過濾雙北：確保地址的「最前面」是台北市或新北市
+            if address.startswith('台北市') or address.startswith('臺北市') or address.startswith('新北市'):
                 toilets_data.append({
                     'name': row['name'],
                     'address': address,
