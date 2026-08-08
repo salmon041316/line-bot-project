@@ -49,20 +49,50 @@ except Exception as e:
 
 # 當使用者傳定位時，直接從大腦算距離
 def find_nearest_toilets_shuangbei(user_lat, user_lon):
+    import sqlite3
+    from geopy.distance import great_circle
+
+    # 1. 連線到資料庫
+    conn = sqlite3.connect('bot_data.db')
+    
+    # 讓資料庫撈出來的資料變成「字典 (Dictionary)」的格式
+    # 可以直接用欄位名稱去取值，跟讀CSV一模一樣
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # 2. 從資料庫把所有的廁所撈出來
+    cursor.execute("SELECT * FROM toilets")
+    all_toilets = cursor.fetchall()
+    conn.close()
+    
     results = []
-    for t in toilets_data:
+    
+    # 3. 迴圈計算每一間廁所的距離
+    for t in all_toilets:
         try:
-            dist = great_circle((user_lat, user_lon), (t['lat'], t['lon'])).kilometers
+            # 注意這裡：確認資料庫裡的欄位名稱
+            toilet_lat = float(t['latitude'])  
+            toilet_lon = float(t['longitude'])
+            
+            # 計算距離(公尺)
+            dist = great_circle((user_lat, user_lon), (toilet_lat, toilet_lon)).meters
+            
+            # 把計算結果存進陣列裡
+            # 這裡的 'address' 也請替換成妳資料庫裡代表地址的欄位名稱 (例如 '地址')
             results.append({
                 'name': t['name'],
-                'address': t['address'],
-                'distance': int(dist * 1000) # 轉成公尺，用 int() 去掉小數點
+                'address': t['address'], 
+                'distance': round(dist)
             })
         except Exception:
+            # 萬一某筆廁所資料剛好沒有經緯度，就跳過它，避免程式崩潰
             continue
-
-    results.sort(key=lambda x: x['distance'])
-    return results[:5] 
+            
+    # 4. 根據距離 (distance) 由小到大排序 (也就是由近到遠)
+    results = sorted(results, key=lambda x: x['distance'])
+    
+    # 5. 回傳前 5 名
+    return results[:5]
 
 # ================= 3. LINE 伺服器通訊接口 (Webhook) =================
 
