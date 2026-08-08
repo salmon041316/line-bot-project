@@ -252,7 +252,7 @@ def create_favorites_flex(favorites_list):
                 {
                     "type": "button",
                     "style": "primary",
-                    "color": "#8ED6F6",
+                    "color": "#769382",
                     "height": "sm",
                     "action": {
                         "type": "uri",
