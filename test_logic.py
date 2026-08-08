@@ -1,11 +1,22 @@
 import os
 import csv
+import sqlite3  # 新增：之後用來連線操作資料庫
+from urllib.parse import parse_qsl  # 新增：用來解析 Postback 按鈕藏的隱藏資料
+
 from flask import Flask, request, abort
 from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, LocationMessage, TextSendMessage, TextMessage, QuickReply, QuickReplyButton, LocationAction
+# 下方 linebot.models 新增了 TemplateSendMessage, CarouselTemplate, CarouselColumn, PostbackAction, PostbackEvent
+from linebot.models import (
+    MessageEvent, LocationMessage, TextSendMessage, TextMessage, 
+    QuickReply, QuickReplyButton, LocationAction,
+    TemplateSendMessage, CarouselTemplate, CarouselColumn, 
+    PostbackAction, PostbackEvent
+)
+# 請確保 favorite_logic.py 跟 test_logic.py 放在同一個資料夾
+from favorite_logic import add_favorite
 
 app = Flask(__name__)
 
@@ -72,17 +83,9 @@ def callback():
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
 def handle_location(event):
-    # 步驟 A：抓取使用者的 ID (做資料庫「收藏」功能的重要關鍵)
+    # 步驟 A：抓取使用者的 ID
     user_id = event.source.user_id
     
-    # 步驟 B：大腦開始運算前，先用 Push Message 推播「請稍等」的提示
-    '''
-    line_bot_api.push_message(
-        user_id,
-        TextSendMessage(text="抓取定位資料及廁所資料中...\n請稍等")
-    )
-    '''
-
     # 步驟 C：開始計算
     user_lat = event.message.latitude
     user_lon = event.message.longitude
@@ -90,20 +93,69 @@ def handle_location(event):
     results = find_nearest_toilets_shuangbei(user_lat, user_lon)
     
     if not results:
-        reply_text = "抱歉，目前在您的附近找不到公共廁所資訊。"
+        reply_msg = TextSendMessage(text="抱歉，目前在您的附近找不到公共廁所資訊")
+        line_bot_api.reply_message(event.reply_token, reply_msg)
     else:
-        reply_text = "為您找到距離最近的 5 個雙北公廁：\n\n"
-        for i, t in enumerate(results, 1):
-            reply_text += f"{i}. 【{t['name']}】\n"
-            reply_text += f"   🚽地址：{t['address']}\n"
-            reply_text += f"   📍距離：約 {t['distance']} 公尺\n"
-            reply_text += ".. 𖥧 𖥧 𖧧 ˒˒. . 𖡼.𖤣𖥧 ⠜ . . 𖥧 𖥧 𖧧 ˒˒. .\n"
+        # 準備建立「旋轉木馬模板」的卡片列表
+        carousel_columns = []
+        
+        for t in results:
+            # 防呆：確保文字沒有超過 LINE 的字數限制 (標題限制 40 字，內文限制 60 字)
+            title_text = t['name'][:40]
+            body_text = f"📍距離：約 {t['distance']} 公尺\n🚽地址：{t['address']}"[:60]
             
-    # 步驟 D：算完之後，用 Reply Token 把結果傳出去
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_text.strip())
-    )
+            # 取得廁所的ID (這裡假設妳的字典中有 'id' 這個鍵，如果沒有，請換成對應的變數)
+            # 如果目前沒有 id，我們暫時先拿 t['name'] 當作資料庫紀錄用的ID 也可以
+            toilet_id = t.get('id', t['name']) 
+            
+            # 製作單一張廁所卡片
+            column = CarouselColumn(
+                title=title_text,
+                text=body_text,
+                actions=[
+                    # 這一顆就是專屬的Postback按鈕
+                    PostbackAction(
+                        label='加入收藏',
+                        display_text=f'我想要收藏 {title_text}',
+                        data=f'action=favorite&toilet_id={toilet_id}' # 把動作跟廁所ID偷藏進去
+                    )
+                ]
+            )
+            carousel_columns.append(column)
+            
+        # 把所有卡片組裝成一個完整的旋轉木馬訊息
+        carousel_template_message = TemplateSendMessage(
+            alt_text='為您找到附近的公廁資訊 (請在手機上查看)',
+            template=CarouselTemplate(columns=carousel_columns)
+        )
+            
+        # 步驟 D：把帶有按鈕的旋轉木馬卡片傳出去
+        line_bot_api.reply_message(
+            event.reply_token,
+            carousel_template_message
+        )
+
+# ================= (新增) 處理 Postback 按鈕被點擊的事件 =================
+@handler.add(PostbackEvent)
+def handle_postback(event):
+    user_id = event.source.user_id
+    
+    # 解析按鈕裡面偷塞的隱藏資料 
+    postback_data = dict(parse_qsl(event.postback.data))
+    
+    # 判斷這個按鈕是不是「收藏」動作
+    if postback_data.get('action') == 'favorite':
+        toilet_id = postback_data.get('toilet_id')
+        
+        # 關鍵整合：把抓到的 user_id 和 toilet_id，丟進妳寫好的資料庫函數裡！
+        # 這裡的 result_msg 會收到 "已成功加入收藏！" 或 "已經在收藏名單"
+        result_msg = add_favorite(user_id, toilet_id)
+        
+        # 把資料庫處理完的結果回覆給使用者
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=result_msg)
+        )
 
 # ================= 5. 當手機傳送「文字」進來時 =================
 @handler.add(MessageEvent, message=TextMessage)
@@ -113,7 +165,7 @@ def handle_text(event):
     # 處理找廁所的功能
     if user_text == '找廁所':
         reply_msg = TextSendMessage(
-            text=" 👇請點擊下方按鈕，分享您的位置給我",
+            text="請點擊下方按鈕，分享您的位置給我",
             quick_reply=QuickReply(
                 items=[
                     QuickReplyButton(
