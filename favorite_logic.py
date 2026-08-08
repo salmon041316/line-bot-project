@@ -50,12 +50,13 @@ def add_favorite(user_id, toilet_id):
 
 # 第三步：撰寫「查看我的收藏」邏輯
 def get_my_favorites(user_id):
+    import sqlite3 # 確保檔案內有載入資料庫模組
     conn = sqlite3.connect('bot_data.db')
     cursor = conn.cursor()
     
-    # 這裡用到SQL的JOIN(關聯)，把兩張表連起來查
+    # 用 SQL 的 JOIN 語法，把收藏表跟廁所表連起來查
     cursor.execute('''
-        SELECT toilets.名稱 
+        SELECT toilets.name 
         FROM favorites 
         JOIN toilets ON favorites.toilet_id = toilets.id
         WHERE favorites.user_id = ?
@@ -66,31 +67,12 @@ def get_my_favorites(user_id):
     
     # 如果結果是空的
     if not results:
-        return "還沒有收藏任何廁所"
+        return "你還沒有收藏任何廁所喔！趕快去探索吧！"
         
     # 如果有資料，就把名單組裝成一段文字
     reply_text = "你的收藏名單：\n"
     for row in results:
-        toilet_name = row[0] # 取出SELECT的第一個欄位 (也就是廁所名稱)
+        toilet_name = row[0] 
         reply_text += f"{toilet_name}\n"
         
     return reply_text
-
-# test
-if __name__ == "__main__":
-    # 1. 確保資料表存在
-    init_db()
-    
-    # 模擬一個使用者的 LINE ID
-    fake_user_id = "U_test_12345"
-    
-    # 2. 模擬使用者收藏了 ID 為 1 和 2 的廁所
-    print(add_favorite(fake_user_id, 1))
-    print(add_favorite(fake_user_id, 2))
-    
-    # 測試防呆：如果重複收藏 ID 為 1 的廁所會怎樣？
-    print(add_favorite(fake_user_id, 1))
-    
-    # 3. 模擬使用者點擊「查看我的收藏」
-    print("--------------------")
-    print(get_my_favorites(fake_user_id))

@@ -16,7 +16,7 @@ from linebot.models import (
     PostbackAction, PostbackEvent
 )
 # 請確保 favorite_logic.py 跟 test_logic.py 放在同一個資料夾
-from favorite_logic import add_favorite
+from favorite_logic import add_favorite, get_my_favorites
 
 app = Flask(__name__)
 
@@ -161,6 +161,7 @@ def handle_postback(event):
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text(event):
     user_text = event.message.text
+    user_id = event.source.user_id  # 記得抓取使用者的ID
     
     # 處理找廁所的功能
     if user_text == '找廁所':
@@ -175,6 +176,16 @@ def handle_text(event):
             )
         )
         line_bot_api.reply_message(event.reply_token, reply_msg)
+   # 新增這一段：當使用者輸入「查看收藏」時
+    elif user_text == '查看收藏':
+        # 呼叫資料庫工具箱，去查這個 user_id 收藏了什麼
+        result_msg = get_my_favorites(user_id)
+        
+        # 把查到的名單回傳給使用者
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=result_msg)
+        ) 
 
 if __name__ == "__main__":
     app.run(port=5000)
