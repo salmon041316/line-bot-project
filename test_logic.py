@@ -236,18 +236,18 @@ def create_favorites_flex(favorites_list):
                 {
                     "type": "button",
                     "style": "secondary",
-                    "color": "#E3E7E8",  # 淺灰色
+                    "color": "#E3E7E8",
                     "height": "sm",
                     "action": {
                         "type": "postback",
-                        "label": "🗑️ 刪除",
+                        "label": "💔 取消收藏",
                         "data": f"action=unfavorite&toilet_id={name}"
                     }
                 },
                 {
                     "type": "button",
                     "style": "primary",
-                    "color": "#769382",  # 莫蘭迪綠
+                    "color": "#8ED6F6",
                     "height": "sm",
                     "action": {
                         "type": "uri",

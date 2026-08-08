@@ -46,7 +46,7 @@ def add_favorite(user_id, toilet_id):
     
     conn.commit()
     conn.close()
-    return "已成功加入收藏！"
+    return "❤️已加入收藏！"
 
 # 第三步：撰寫「查看我的收藏」邏輯
 def get_my_favorites(user_id):
