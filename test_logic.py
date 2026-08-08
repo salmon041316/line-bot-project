@@ -1,7 +1,7 @@
 import os
 import csv
 import sqlite3  # 新增：之後用來連線操作資料庫
-from urllib.parse import parse_qsl  # 新增：用來解析 Postback 按鈕藏的隱藏資料
+from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort
 from geopy.distance import great_circle
@@ -250,9 +250,9 @@ def create_favorites_flex(favorites_list):
                     "color": "#769382",  # 莫蘭迪綠
                     "height": "sm",
                     "action": {
-                        "type": "postback",
-                        "label": "📍 查看資訊",
-                        "data": f"action=view_info&toilet_id={name}" # 預留給未來的查看資訊功能
+                        "type": "uri",
+                        "label": "📍 查看地圖",
+                        "uri": f"https://www.google.com/maps/search/?api=1&query={quote(name)}"
                     }
                 }
             ]
