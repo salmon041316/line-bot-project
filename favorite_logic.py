@@ -54,7 +54,6 @@ def get_my_favorites(user_id):
     conn = sqlite3.connect('bot_data.db')
     cursor = conn.cursor()
     
-    # 修改這裡：因為 toilet_id 裡面存的就是名字
     cursor.execute('''
         SELECT toilet_id 
         FROM favorites 
@@ -64,17 +63,15 @@ def get_my_favorites(user_id):
     results = cursor.fetchall()
     conn.close()
     
-    # 如果結果是空的
-    if not results:
-        return "你還沒有收藏任何廁所喔！趕快去探索吧！"
-        
-    # 如果有資料，就把名單組裝成一段文字
-    reply_text = "你的收藏名單：\n"
+    # 準備一個空清單
+    favorites_list = []
+    
+    # 把找到的名字一個個放進清單裡
     for row in results:
-        toilet_name = row[0] # 把剛剛撈出來的名字裝進來
-        reply_text += f"{toilet_name}\n"
+        favorites_list.append(row[0])
         
-    return reply_text
+    # 直接回傳這個清單給主程式
+    return favorites_list
 
 def remove_favorite(user_id, toilet_id):
     import sqlite3 

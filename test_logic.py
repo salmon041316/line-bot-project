@@ -13,7 +13,7 @@ from linebot.models import (
     MessageEvent, LocationMessage, TextSendMessage, TextMessage, 
     QuickReply, QuickReplyButton, LocationAction,
     TemplateSendMessage, CarouselTemplate, CarouselColumn, 
-    PostbackAction, PostbackEvent
+    PostbackAction, PostbackEvent, FlexSendMessage
 )
 # 請確保 favorite_logic.py 跟 test_logic.py 放在同一個資料夾
 from favorite_logic import add_favorite, get_my_favorites, remove_favorite
@@ -105,7 +105,7 @@ def handle_location(event):
             body_text = f"📍距離：約 {t['distance']} 公尺\n🚽地址：{t['address']}"[:60]
             
             # 取得廁所的ID (這裡假設妳的字典中有 'id' 這個鍵，如果沒有，請換成對應的變數)
-            # 如果目前沒有 id，我們暫時先拿 t['name'] 當作資料庫紀錄用的ID 也可以
+            # 沒有 id，我們暫時先拿 t['name'] 當作資料庫紀錄用的ID
             toilet_id = t.get('id', t['name']) 
             
             # 製作單一張廁所卡片
@@ -182,16 +182,78 @@ def handle_text(event):
             )
         )
         line_bot_api.reply_message(event.reply_token, reply_msg)
+
    # 新增這一段：當使用者輸入「查看收藏」時
     elif user_text == '查看收藏':
-        # 呼叫資料庫工具箱，去查這個 user_id 收藏了什麼
-        result_msg = get_my_favorites(user_id)
+        # 1. 先去資料庫拿名單 (現在會拿到一個 List)
+        favorites_list = get_my_favorites(user_id)
         
-        # 把查到的名單回傳給使用者
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=result_msg)
-        ) 
+        # 2. 判斷名單是不是空的
+        if not favorites_list:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="你還沒有收藏任何廁所")
+            )
+        else:
+            # 3. 如果有名單，就把名單丟進製造機，做成Flex Message
+            flex_content = create_favorites_flex(favorites_list)
+            
+            line_bot_api.reply_message(
+                event.reply_token,
+                FlexSendMessage(alt_text="你的收藏名單", contents=flex_content)
+            )
+           
+def create_favorites_flex(favorites_list):
+    # 這是卡片最上方的標題區塊
+    contents = [
+        {"type": "text", "text": "❤️ 我的收藏名單", "weight": "bold", "size": "xl", "color": "#E55B5B"},
+        {"type": "text", "text": "點選下方按鈕可進行管理或查看路線", "size": "xs", "color": "#999999", "margin": "sm"},
+        {"type": "separator", "margin": "md"}
+    ]
+    
+    # 透過迴圈，根據名單數量動態產生對應數量的項目與按鈕
+    for i, name in enumerate(favorites_list, 1):
+        # 加入廁所名稱
+        contents.append({"type": "text", "text": f"{i}. {name}", "weight": "bold", "size": "sm", "margin": "md"})
+        
+        # 加入一排兩個按鈕 (水平排列)
+        contents.append({
+            "type": "box",
+            "layout": "horizontal",
+            "margin": "sm",
+            "spacing": "sm",
+            "contents": [
+                {
+                    "type": "button",
+                    "style": "secondary",
+                    "color": "#E3E7E8",  # 淺灰色
+                    "height": "sm",
+                    "action": {
+                        "type": "postback",
+                        "label": "🗑️ 刪除",
+                        "data": f"action=unfavorite&toilet_id={name}"
+                    }
+                },
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "color": "#769382",  # 莫蘭迪綠
+                    "height": "sm",
+                    "action": {
+                        "type": "postback",
+                        "label": "📍 查看資訊",
+                        "data": f"action=view_info&toilet_id={name}" # 預留給未來的查看資訊功能
+                    }
+                }
+            ]
+        })
+        
+    # 最後把所有內容包裝成 Flex Message 規定的格式
+    flex_dict = {
+        "type": "bubble",
+        "body": {"type": "box", "layout": "vertical", "contents": contents}
+    }
+    return flex_dict
 
 if __name__ == "__main__":
     app.run(port=5000)
