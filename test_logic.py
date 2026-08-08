@@ -27,27 +27,8 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# ================= 2. 核心大腦 =================
-# 伺服器開機時，先預載雙北廁所資料到大腦（只做一次）
-toilets_data = []
-try:
-    with open('toilets.csv', mode='r', encoding='utf-8-sig') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            address = row['address']
-            
-            # 嚴格過濾雙北：確保地址的「最前面」是台北市或新北市
-            if address.startswith('台北市') or address.startswith('臺北市') or address.startswith('新北市'):
-                toilets_data.append({
-                    'name': row['name'],
-                    'address': address,
-                    'lat': float(row['latitude']),
-                    'lon': float(row['longitude'])
-                })
-except Exception as e:
-    print(f"讀取 CSV 發生錯誤: {e}")
-
-# 當使用者傳定位時，直接從大腦算距離
+# ================= 2. 核心資料庫運算 =================
+# 當使用者傳送定位時，直接從「資料庫」撈出所有廁所來計算距離
 def find_nearest_toilets_shuangbei(user_lat, user_lon):
     import sqlite3
     from geopy.distance import great_circle
@@ -56,7 +37,6 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
     conn = sqlite3.connect('bot_data.db')
     
     # 讓資料庫撈出來的資料變成「字典 (Dictionary)」的格式
-    # 可以直接用欄位名稱去取值，跟讀CSV一模一樣
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -70,15 +50,15 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
     # 3. 迴圈計算每一間廁所的距離
     for t in all_toilets:
         try:
-            # 注意這裡：確認資料庫裡的欄位名稱
+            # 如果資料庫裡的經緯度欄位是中文，請改成資料庫裡欄位名稱
             toilet_lat = float(t['latitude'])  
             toilet_lon = float(t['longitude'])
             
-            # 計算距離(公尺)
+            # 計算距離 (公尺)
             dist = great_circle((user_lat, user_lon), (toilet_lat, toilet_lon)).meters
             
             # 把計算結果存進陣列裡
-            # 這裡的 'address' 也請替換成妳資料庫裡代表地址的欄位名稱 (例如 '地址')
+            # 這裡的 'address' 如果資料庫裡的欄位是中文，請改成資料庫裡欄位名稱
             results.append({
                 'name': t['name'],
                 'address': t['address'], 
