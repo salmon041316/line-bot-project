@@ -13,7 +13,7 @@ from linebot.models import (
     MessageEvent, LocationMessage, TextSendMessage, TextMessage, 
     QuickReply, QuickReplyButton, LocationAction,
     TemplateSendMessage, CarouselTemplate, CarouselColumn, 
-    PostbackAction, PostbackEvent, FlexSendMessage
+    PostbackAction, PostbackEvent, FlexSendMessage, URIAction
 )
 # 請確保 favorite_logic.py 跟 test_logic.py 放在同一個資料夾
 from favorite_logic import add_favorite, get_my_favorites, remove_favorite
@@ -118,22 +118,27 @@ def handle_location(event):
             # 沒有 id，我們暫時先拿 t['name'] 當作資料庫紀錄用的ID
             toilet_id = t.get('id', t['name']) 
             
-            # 製作單一張廁所卡片
+            # 製作單一張廁所卡片，組裝卡片的地方
             column = CarouselColumn(
-                title=title_text,
-                text=body_text,
+                title=title_text,     # 廁所名稱
+                text=body_text,       # 距離與地址等資訊
                 actions=[
-                    # 原本的加入收藏按鈕
+                    # 第一顆按鈕：加入收藏
                     PostbackAction(
-                        label='加入收藏❤️',
-                        display_text=f'收藏 {title_text}',
-                        data=f'action=favorite&toilet_id={toilet_id}' 
+                        label='加入收藏 ❤️',
+                        display_text=f'我想要收藏 {title_text}',
+                        data=f'action=favorite&toilet_id={title_text}' 
                     ),
-                    # 🌟 新增的取消收藏按鈕
+                    # 第二顆按鈕：取消收藏
                     PostbackAction(
-                        label='取消收藏💔',
-                        display_text=f'取消收藏 {title_text}',
-                        data=f'action=unfavorite&toilet_id={toilet_id}' # 這裡的action 變成了unfavorite
+                        label='取消收藏 💔',
+                        display_text=f'我要取消收藏 {title_text}',
+                        data=f'action=unfavorite&toilet_id={title_text}'
+                    ),
+                    # 第三顆按鈕：查看地圖
+                    URIAction(
+                        label='📍 查看地圖',
+                        uri=f"https://www.google.com/maps/search/?api=1&query={quote(title_text)}"
                     )
                 ]
             )
