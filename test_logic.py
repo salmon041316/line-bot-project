@@ -16,7 +16,7 @@ from linebot.models import (
     PostbackAction, PostbackEvent
 )
 # 請確保 favorite_logic.py 跟 test_logic.py 放在同一個資料夾
-from favorite_logic import add_favorite, get_my_favorites
+from favorite_logic import add_favorite, get_my_favorites, remove_favorite
 
 app = Flask(__name__)
 
@@ -113,11 +113,17 @@ def handle_location(event):
                 title=title_text,
                 text=body_text,
                 actions=[
-                    # 這一顆就是專屬的Postback按鈕
+                    # 原本的加入收藏按鈕
                     PostbackAction(
-                        label='加入收藏',
-                        display_text=f'我想要收藏 {title_text}',
-                        data=f'action=favorite&toilet_id={toilet_id}' # 把動作跟廁所ID偷藏進去
+                        label='加入收藏❤️',
+                        display_text=f'收藏 {title_text}',
+                        data=f'action=favorite&toilet_id={toilet_id}' 
+                    ),
+                    # 🌟 新增的取消收藏按鈕
+                    PostbackAction(
+                        label='取消收藏💔',
+                        display_text=f'取消收藏 {title_text}',
+                        data=f'action=unfavorite&toilet_id={toilet_id}' # 這裡的action 變成了unfavorite
                     )
                 ]
             )
@@ -139,23 +145,23 @@ def handle_location(event):
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
-    
-    # 解析按鈕裡面偷塞的隱藏資料 
     postback_data = dict(parse_qsl(event.postback.data))
     
-    # 判斷這個按鈕是不是「收藏」動作
+    # 判斷是不是「加入收藏」
     if postback_data.get('action') == 'favorite':
         toilet_id = postback_data.get('toilet_id')
-        
-        # 關鍵整合：把抓到的 user_id 和 toilet_id，丟進妳寫好的資料庫函數裡！
-        # 這裡的 result_msg 會收到 "已成功加入收藏！" 或 "已經在收藏名單"
         result_msg = add_favorite(user_id, toilet_id)
         
-        # 把資料庫處理完的結果回覆給使用者
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=result_msg)
-        )
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result_msg))
+        
+    # 新增：判斷是不是「取消收藏」
+    elif postback_data.get('action') == 'unfavorite':
+        toilet_id = postback_data.get('toilet_id')
+        
+        # 呼叫刪除函數
+        result_msg = remove_favorite(user_id, toilet_id)
+        
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result_msg))
 
 # ================= 5. 當手機傳送「文字」進來時 =================
 @handler.add(MessageEvent, message=TextMessage)

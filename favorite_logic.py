@@ -75,3 +75,28 @@ def get_my_favorites(user_id):
         reply_text += f"{toilet_name}\n"
         
     return reply_text
+
+def remove_favorite(user_id, toilet_id):
+    import sqlite3 
+    conn = sqlite3.connect('bot_data.db')
+    cursor = conn.cursor()
+    
+    # 步驟 1：先檢查這間廁所是不是真的有在收藏名單裡？
+    cursor.execute('''
+        SELECT * FROM favorites 
+        WHERE user_id = ? AND toilet_id = ?
+    ''', (user_id, toilet_id))
+    
+    if not cursor.fetchone():
+        conn.close()
+        return "這間廁所不在收藏名單內"
+    
+    # 步驟 2：如果有在名單裡，就執行 DELETE 把它刪掉
+    cursor.execute('''
+        DELETE FROM favorites 
+        WHERE user_id = ? AND toilet_id = ?
+    ''', (user_id, toilet_id))
+    
+    conn.commit()
+    conn.close()
+    return "💔已取消收藏"
