@@ -50,16 +50,15 @@ def add_favorite(user_id, toilet_id):
 
 # 第三步：撰寫「查看我的收藏」邏輯
 def get_my_favorites(user_id):
-    import sqlite3 # 確保檔案內有載入資料庫模組
+    import sqlite3 
     conn = sqlite3.connect('bot_data.db')
     cursor = conn.cursor()
     
-    # 用 SQL 的 JOIN 語法，把收藏表跟廁所表連起來查
+    # 修改這裡：因為 toilet_id 裡面存的就是名字
     cursor.execute('''
-        SELECT toilets.name 
+        SELECT toilet_id 
         FROM favorites 
-        JOIN toilets ON favorites.toilet_id = toilets.id
-        WHERE favorites.user_id = ?
+        WHERE user_id = ?
     ''', (user_id,))
     
     results = cursor.fetchall()
@@ -72,7 +71,7 @@ def get_my_favorites(user_id):
     # 如果有資料，就把名單組裝成一段文字
     reply_text = "你的收藏名單：\n"
     for row in results:
-        toilet_name = row[0] 
+        toilet_name = row[0] # 把剛剛撈出來的名字裝進來
         reply_text += f"{toilet_name}\n"
         
     return reply_text
