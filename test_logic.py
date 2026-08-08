@@ -129,13 +129,7 @@ def handle_location(event):
                         display_text=f'我想要收藏 {title_text}',
                         data=f'action=favorite&toilet_id={title_text}' 
                     ),
-                    # 第二顆按鈕：取消收藏
-                    PostbackAction(
-                        label='取消收藏 💔',
-                        display_text=f'我要取消收藏 {title_text}',
-                        data=f'action=unfavorite&toilet_id={title_text}'
-                    ),
-                    # 第三顆按鈕：查看地圖
+                    # 第二顆按鈕：查看地圖
                     URIAction(
                         label='📍 查看地圖',
                         uri=f"https://www.google.com/maps/search/?api=1&query={quote(title_text)}"
