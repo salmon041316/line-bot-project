@@ -46,7 +46,7 @@
         async function initializeLiff() {
             try {
                 // 妳要在這裡把剛剛拿到的 LIFF ID 貼上去！
-                await liff.init({ liffId:2011608763-NWNQFgKI });
+                await liff.init({ liffId: "2011608763-NWNQFgKI" });
                 
                 if (!liff.isLoggedIn()) {
                     liff.login(); // 如果沒登入，逼他登入
