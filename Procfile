@@ -1,1 +1,1 @@
-web: gunicorn app:test_logic.py
+web: gunicorn main:app
