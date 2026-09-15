@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <!-- 確保在手機上看起來比例正確 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>留下妳的評價</title>
+    <title>留下你的評價</title>
     <!-- 引入 LINE 官方的 LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* 美編同學可以在這裡盡情發揮她的 CSS 魔法 */
+        /* 美編CSS */
         body { font-family: sans-serif; padding: 20px; text-align: center; }
         .stars { font-size: 2em; color: #ccc; cursor: pointer; }
         .star.active { color: #f5c518; }
@@ -22,7 +22,7 @@
     
     <p>請給這間廁所幾顆星？</p>
     <div class="stars" id="starContainer">
-        <!-- 美編可以改成更好看的星星圖案 -->
+        <!-- 美編星星圖案 -->
         <span class="star" data-value="1">★</span>
         <span class="star" data-value="2">★</span>
         <span class="star" data-value="3">★</span>
@@ -35,24 +35,22 @@
     <button id="submitBtn" onclick="submitReview()">送出評價</button>
 
     <script>
-        // ==========================================
-        // 這是 JavaScript 邏輯
-        // ==========================================
-        
+
+        // 這是 JavaScript 邏輯       
         let selectedStars = 0;
         let toiletId = "未知廁所";
 
         // 1. 初始化 LIFF 應用程式
         async function initializeLiff() {
             try {
-                // 已經補上雙引號的正確 LIFF ID！
+                // 正確 LIFF ID
                 await liff.init({ liffId: "2011608763-NWNQFgKI" });
                 
                 if (!liff.isLoggedIn()) {
                     liff.login(); // 如果沒登入，逼他登入
                 }
 
-                // 2. 從網址抓取是哪間廁所 (例如: ?toilet_id=捷運北門站)
+                // 2. 從網址抓取是哪間廁所
                 const urlParams = new URLSearchParams(window.location.search);
                 toiletId = urlParams.get('toilet_id') || "未知廁所";
                 document.getElementById('toiletName').innerText = `正在評價：${toiletId}`;
