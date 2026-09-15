@@ -16,7 +16,7 @@ from linebot.models import (
     TemplateSendMessage, CarouselTemplate, CarouselColumn, 
     PostbackAction, PostbackEvent, FlexSendMessage, URIAction
 )
-# 請確保 favorite_logic.py 跟 test_logic.py 放在同一個資料夾
+# 請確保 favorite_logic.py 跟 main.py 放在同一個資料夾
 from favorite_logic import add_favorite, get_my_favorites, remove_favorite
 
 app = Flask(__name__)
@@ -148,7 +148,7 @@ def handle_location(event):
                 actions=[
                     # 第一顆按鈕：加入收藏
                     PostbackAction(
-                        label='加入收藏 ❤️',
+                        label='❤️ 加入收藏',
                         display_text=f'我想要收藏 {title_text}',
                         data=f'action=favorite&toilet_id={title_text}' 
                     ),
@@ -156,9 +156,16 @@ def handle_location(event):
                     URIAction(
                         label='📍 查看地圖',
                         uri=f"https://www.google.com/maps/search/?api=1&query={quote(title_text)}"
+                    ),
+                    # 🌟 第三顆按鈕：留下評價
+                    URIAction(
+                        label='⭐ 留下評價',
+                        # 這裡的網址帶上 toilet_id，讓網頁知道現在在評價哪一間
+                        uri=f"https://liff.line.me/2011608763-NWNQFgKI?toilet_id={quote(title_text)}"
                     )
                 ]
             )
+
             carousel_columns.append(column)
             
         # 把所有卡片組裝成一個完整的旋轉木馬訊息
