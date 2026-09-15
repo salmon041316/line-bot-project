@@ -22,6 +22,7 @@
     
     <p>請給這間廁所幾顆星？</p>
     <div class="stars" id="starContainer">
+        <!-- 美編可以改成更好看的星星圖案 -->
         <span class="star" data-value="1">★</span>
         <span class="star" data-value="2">★</span>
         <span class="star" data-value="3">★</span>
@@ -34,6 +35,9 @@
     <button id="submitBtn" onclick="submitReview()">送出評價</button>
 
     <script>
+        // ==========================================
+        // 這是 JavaScript 邏輯
+        // ==========================================
         
         let selectedStars = 0;
         let toiletId = "未知廁所";
@@ -41,14 +45,14 @@
         // 1. 初始化 LIFF 應用程式
         async function initializeLiff() {
             try {
-                // LIFF ID
+                // 已經補上雙引號的正確 LIFF ID！
                 await liff.init({ liffId: "2011608763-NWNQFgKI" });
                 
                 if (!liff.isLoggedIn()) {
                     liff.login(); // 如果沒登入，逼他登入
                 }
 
-                // 2. 從網址抓取是哪間廁所
+                // 2. 從網址抓取是哪間廁所 (例如: ?toilet_id=捷運北門站)
                 const urlParams = new URLSearchParams(window.location.search);
                 toiletId = urlParams.get('toilet_id') || "未知廁所";
                 document.getElementById('toiletName').innerText = `正在評價：${toiletId}`;
@@ -80,16 +84,8 @@
                 }
 
                 const comment = document.getElementById('comment').value;
-                
-                // 測試點 A：看有沒有順利執行到這裡
-                alert("準備抓取 LINE 帳號資料...");
-
                 const profile = await liff.getProfile();
                 const userId = profile.userId;
-
-                // 測試點 B：看有沒有成功抓到 ID
-                alert("成功抓到 ID，準備傳送給後端...");
-
                 const response = await fetch('/api/review', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -102,14 +98,14 @@
                 });
 
                 if (response.ok) {
-                    alert("評價送出成功，感謝你的分享");
+                    alert("評價送出成功，感謝你的分享！");
                     liff.closeWindow(); 
                 } else {
                     alert("後端接收失敗！狀態碼：" + response.status);
                 }
             } catch (err) {
                 // 如果過程中有任何當機，手機會直接彈出這段錯誤訊息！
-                alert("抓到蟲了！錯誤原因：" + err.message);
+                alert("錯誤原因：" + err.message);
             }
         }
 
