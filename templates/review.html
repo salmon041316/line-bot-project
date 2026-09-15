@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <!-- 確保在手機上看起來比例正確 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>留下妳的評價</title>
+    <!-- 引入 LINE 官方的 LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        /* 美編同學可以在這裡盡情發揮她的 CSS 魔法 */
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        .stars { font-size: 2em; color: #ccc; cursor: pointer; }
+        .star.active { color: #f5c518; }
+        textarea { width: 100%; height: 100px; margin-top: 15px; padding: 10px; }
+        button { background-color: #769382; color: white; border: none; padding: 10px 20px; margin-top: 20px; border-radius: 5px; width: 100%; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+    <h2 id="toiletName">載入廁所資訊中...</h2>
+    
+    <p>請給這間廁所幾顆星？</p>
+    <div class="stars" id="starContainer">
+        <!-- 美編可以改成更好看的星星圖案 -->
+        <span class="star" data-value="1">★</span>
+        <span class="star" data-value="2">★</span>
+        <span class="star" data-value="3">★</span>
+        <span class="star" data-value="4">★</span>
+        <span class="star" data-value="5">★</span>
+    </div>
+
+    <textarea id="comment" placeholder="這間廁所有衛生紙嗎？乾淨嗎？留言分享一下吧！"></textarea>
+    
+    <button id="submitBtn" onclick="submitReview()">送出評價</button>
+
+    <script>
+        // ==========================================
+        // 這是 JavaScript 邏輯
+        // ==========================================
+        
+        let selectedStars = 0;
+        let toiletId = "未知廁所";
+
+        // 1. 初始化 LIFF 應用程式
+        async function initializeLiff() {
+            try {
+                // 妳要在這裡把剛剛拿到的 LIFF ID 貼上去！
+                await liff.init({ liffId:2011608763-NWNQFgKI });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login(); // 如果沒登入，逼他登入
+                }
+
+                // 2. 從網址抓取是哪間廁所 (例如: ?toilet_id=捷運北門站)
+                const urlParams = new URLSearchParams(window.location.search);
+                toiletId = urlParams.get('toilet_id') || "未知廁所";
+                document.getElementById('toiletName').innerText = `正在評價：${toiletId}`;
+
+            } catch (err) {
+                console.error("LIFF 初始化失敗", err);
+            }
+        }
+
+        // 3. 處理星星點擊的視覺效果
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function() {
+                selectedStars = this.getAttribute('data-value');
+                document.querySelectorAll('.star').forEach(s => {
+                    s.classList.remove('active');
+                    if (s.getAttribute('data-value') <= selectedStars) {
+                        s.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        // 4. 送出評價給 Flask 後端
+        async function submitReview() {
+            if (selectedStars === 0) {
+                alert("請至少給一顆星喔");
+                return;
+            }
+
+            const comment = document.getElementById('comment').value;
+            // 抓取使用者的 LINE ID
+            const profile = await liff.getProfile();
+            const userId = profile.userId;
+
+            // 把資料打包射給我們之後要寫的 Flask API
+            const response = await fetch('/api/review', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    toilet_name: toiletId,
+                    stars: selectedStars,
+                    comment: comment
+                })
+            });
+
+            if (response.ok) {
+                alert("評價送出成功，感謝你的分享！");
+                liff.closeWindow(); // 送出後自動完美關閉網頁，回到 LINE
+            } else {
+                alert("傳送失敗，請稍後再試");
+            }
+        }
+
+        // 網頁載入時立刻啟動 LIFF
+        initializeLiff();
+    </script>
+</body>
+</html>
