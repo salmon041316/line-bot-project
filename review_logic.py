@@ -5,9 +5,20 @@ def save_review_to_db(user_id, toilet_name, stars, comment):
     接收從主程式傳來的資料，負責把它寫進 SQLite 資料庫裡的 reviews 表格
     """
     try:
-        # 連線到妳現有的資料庫
         conn = sqlite3.connect('bot_data.db')
         cursor = conn.cursor()
+        
+        # 每次寫入前先確認表格存在，如果沒有就立刻建一個
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                toilet_name TEXT NOT NULL,
+                stars INTEGER NOT NULL,
+                comment TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         
         # 執行 SQL 新增語法
         cursor.execute('''
@@ -16,12 +27,11 @@ def save_review_to_db(user_id, toilet_name, stars, comment):
         ''', (user_id, toilet_name, stars, comment))
         
         conn.commit()
-        return True  # 寫入成功就回傳 True
+        return True  
         
     except Exception as e:
         print(f"評價寫入失敗: {e}")
-        return False # 寫入發生錯誤就回傳 False
+        return False 
         
     finally:
-        # 確保無論成功失敗，資料庫都會關閉連線
         conn.close()
