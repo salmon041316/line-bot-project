@@ -4,7 +4,7 @@ import sqlite3  # 新增：之後用來連線操作資料庫
 from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort, render_template, jsonify
-from review_logic import save_review_to_db
+from review_logic import save_review_to_db, get_reviews_by_toilet
 from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
@@ -81,12 +81,12 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
 def home():
     return "Hello! LINE Bot is alive!"
 
-# 🌟 評價系統：顯示網頁 (GET)
+# 評價系統：顯示網頁 (GET)
 @app.route('/review')
 def render_review_page():
     return render_template('review.html')
 
-# 🌟 評價系統：接收前端傳來的評價資料 (POST)
+# 評價系統：接收前端傳來的評價資料 (POST)
 @app.route('/api/review', methods=['POST'])
 def submit_review_api():
     data = request.get_json()
@@ -112,6 +112,20 @@ def callback():
     except InvalidSignatureError:
         abort(400)
     return 'OK'
+
+# 1. 給網頁讀取資料用的 API 通道
+@app.route('/api/reviews/<toilet_name>', methods=['GET'])
+def get_reviews(toilet_name):
+    # 呼叫剛剛在 review_logic.py 寫的函數
+    reviews = get_reviews_by_toilet(toilet_name)
+    # 打包成 JSON 格式回傳給前端網頁
+    return jsonify(reviews)
+
+
+# 2. 顯示「查看評價」網頁的通道
+@app.route('/view_reviews')
+def view_reviews_page():
+    return render_template('view_reviews.html')
 
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
