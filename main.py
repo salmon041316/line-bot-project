@@ -14,7 +14,8 @@ from linebot.models import (
     MessageEvent, LocationMessage, TextSendMessage, TextMessage, 
     QuickReply, QuickReplyButton, LocationAction,
     TemplateSendMessage, CarouselTemplate, CarouselColumn, 
-    PostbackAction, PostbackEvent, FlexSendMessage, URIAction
+    PostbackAction, PostbackEvent, FlexSendMessage, URIAction, 
+    ButtonsTemplate, URITemplateAction, MessageTemplateAction
 )
 # 請確保 favorite_logic.py 跟 main.py 放在同一個資料夾
 from favorite_logic import add_favorite, get_my_favorites, remove_favorite
@@ -261,7 +262,29 @@ def handle_text(event):
                 event.reply_token,
                 FlexSendMessage(alt_text="你的收藏名單", contents=flex_content)
             )
-           
+    # 新增這一段：處理評價選單
+    elif user_text == '寫評價、查看評價':
+        buttons_template = TemplateSendMessage(
+            alt_text='評價功能選單',
+            template=ButtonsTemplate(
+                title='廁所評價系統',
+                text='請選擇您想要使用的功能：',
+                actions=[
+                    # 第一顆按鈕：開啟查看評價網頁
+                    URITemplateAction(
+                        label='🔍 查看評價',
+                        uri='https://line-bot-project-fn7r.onrender.com/view_reviews'
+                    ),
+                    # 第二顆按鈕：點擊後機器人會自動回覆教學文字
+                    MessageTemplateAction(
+                        label='✏️ 怎麼寫評價？',
+                        text='【如何寫評價？】\n請先點選選單的「找廁所」或「地址」搜尋，找到目標廁所後，直接點擊卡片下方的「⭐ 留下評價」按鈕，就可以開始評分囉！'
+                    )
+                ]
+            )
+        )
+        line_bot_api.reply_message(event.reply_token, buttons_template)
+
 def create_favorites_flex(favorites_list):
     # 這是卡片最上方的標題區塊
     contents = [
