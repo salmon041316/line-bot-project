@@ -32,6 +32,8 @@
     </div>
 
     <h3 id="currentToilet" style="display: none;"></h3>
+    <!-- 新增這行：用來放動態產生的寫評價按鈕 -->
+    <div id="writeReviewBtnContainer" style="margin-bottom: 15px;"></div>
     
     <div id="reviewsContainer">
         <div class="no-data">資料載入中... ⏳</div>
@@ -95,6 +97,14 @@
 
             document.getElementById('currentToilet').style.display = "block";
             document.getElementById('currentToilet').innerText = `「${toiletName}」的搜尋結果：`;
+            // --- 新增這段：動態產生寫評價的專屬按鈕 ---
+            const writeReviewUrl = `https://liff.line.me/2011608763-NWNQFgKI?toilet_id=${encodeURIComponent(toiletName)}`;
+            document.getElementById('writeReviewBtnContainer').innerHTML = `
+                <button onclick="window.location.href='${writeReviewUrl}'" 
+                    style="background-color: #f5c518; color: #333; width: 100%; font-weight: bold; padding: 12px; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    撰寫「${toiletName}」的評價
+                    </button>
+            `;
             document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>資料載入中... ⏳</div>";
 
             try {
@@ -108,6 +118,8 @@
 
         // 一進網頁載入最新評價
         async function loadLatestReviews() {
+
+            document.getElementById('writeReviewBtnContainer').innerHTML = ""; // 新增這行清空按鈕
             document.getElementById('currentToilet').style.display = "block";
             document.getElementById('currentToilet').innerText = "✨最新評價總覽：";
             document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>資料載入中... ⏳</div>";
