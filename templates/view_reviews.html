@@ -64,12 +64,13 @@
 
                 // 把撈到的評價一筆一筆做成卡片
                 data.forEach(review => {
-                    // 自動產生星星符號 (例如 4 顆星會變成 ★★★★☆)
+                    // 產生星星符號
                     let starString = "★".repeat(review.stars) + "☆".repeat(5 - review.stars);
 
                     const card = document.createElement('div');
                     card.className = 'review-card';
                     card.innerHTML = `
+                        <div style="font-weight: bold; color: #769382; margin-bottom: 8px;">📍 ${review.toilet_name}</div>
                         <div class="stars">${starString}</div>
                         <p>${review.comment ? review.comment : '<span style="color:#ccc;">(此使用者未留下文字評論)</span>'}</p>
                         <div class="date">${review.created_at}</div>
@@ -79,7 +80,7 @@
 
             } catch (err) {
                 console.error(err);
-                container.innerHTML = "<div class='no-data'>伺服器連線失敗，請稍後再試 😢</div>";
+                container.innerHTML = "<div class='no-data'>伺服器連線失敗，請稍後再試</div>";
             }
         }
 
