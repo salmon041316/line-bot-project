@@ -1,9 +1,7 @@
 import sqlite3
 
 def save_review_to_db(user_id, toilet_name, stars, comment):
-    """
-    接收從主程式傳來的資料，負責把它寫進 SQLite 資料庫裡的 reviews 表格
-    """
+    # 接收從主程式傳來的資料，負責把它寫進 SQLite 資料庫裡的 reviews 表格
     try:
         conn = sqlite3.connect('bot_data.db')
         cursor = conn.cursor()
@@ -36,29 +34,27 @@ def save_review_to_db(user_id, toilet_name, stars, comment):
     finally:
         conn.close()
 
-def get_reviews_by_toilet(toilet_name): 
-
-    # 根據廁所名稱，從資料庫撈出所有評價，並依照時間由新到舊排序
+def get_reviews_by_toilet(keyword):
+    # 根據關鍵字，從資料庫模糊搜尋所有相關評價，並依照時間由新到舊排序
     try:
         conn = sqlite3.connect('bot_data.db')
-        # 這行用字典的方式 (像 row['stars']) 來讀取資料
         conn.row_factory = sqlite3.Row 
         cursor = conn.cursor()
         
-        # 執行 SQL 查詢：選取星等、留言、時間，條件是廁所名稱，並用時間倒序排列 (DESC)
+        # 1. 關鍵修改：用 LIKE 取代 =，並把 toilet_name 也選出來
         cursor.execute('''
-            SELECT stars, comment, created_at 
+            SELECT toilet_name, stars, comment, created_at 
             FROM reviews 
-            WHERE toilet_name = ? 
+            WHERE toilet_name LIKE ? 
             ORDER BY created_at DESC
-        ''', (toilet_name,))
+        ''', (f'%{keyword}%',))
         
         rows = cursor.fetchall()
         
-        # 把撈出來的資料打包成一個乾淨的 List
         reviews_list = []
         for row in rows:
             reviews_list.append({
+                "toilet_name": row["toilet_name"], # 2. 把廁所名稱也打包回傳
                 "stars": row["stars"],
                 "comment": row["comment"],
                 "created_at": row["created_at"]
@@ -68,7 +64,7 @@ def get_reviews_by_toilet(toilet_name):
         
     except Exception as e:
         print(f"讀取評價失敗: {e}")
-        return [] # 如果發生錯誤，就回傳空陣列
+        return [] 
         
     finally:
         conn.close()
