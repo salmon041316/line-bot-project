@@ -32,8 +32,6 @@
     </div>
 
     <h3 id="currentToilet" style="display: none;"></h3>
-    <!-- 新增這行：用來放動態產生的寫評價按鈕 -->
-    <div id="writeReviewBtnContainer" style="margin-bottom: 15px;"></div>
     
     <div id="reviewsContainer">
         <div class="no-data">資料載入中... ⏳</div>
@@ -69,20 +67,28 @@
                 }
 
             // 下面是原本印出評價卡片的程式碼 (保持不變)
+            // 這是原本產生卡片的迴圈，我們把按鈕加到卡片裡面！
             data.forEach(review => {
                 let starString = "★".repeat(review.stars) + "☆".repeat(5 - review.stars);
                 const card = document.createElement('div');
                 card.className = 'review-card';
                 
+                // 針對這間「特定的廁所」產生專屬的兩個網址
                 const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(review.toilet_name)}`;
-                card.onclick = () => { window.location.href = mapUrl; };
+                // 請確認這是你們寫評價的 LIFF 網址
+                const writeReviewUrl = `https://liff.line.me/2011608763-NWNQFgKI?toilet_id=${encodeURIComponent(review.toilet_name)}`;
 
                 card.innerHTML = `
-                    <div style="font-weight: bold; color: #769382; margin-bottom: 8px;">📍 ${review.toilet_name}</div>
+                    <div style="font-weight: bold; color: #769382; margin-bottom: 8px; font-size: 1.1em;">📍 ${review.toilet_name}</div>
                     <div class="stars">${starString}</div>
                     <p>${review.comment ? review.comment : '<span style="color:#ccc;">(此使用者未留下文字評論)</span>'}</p>
-                    <div class="date">${review.created_at}</div>
-                    <div style="font-size: 0.8em; color: #4b88eb; text-align: right; margin-top: 5px;">👉 點擊查看 Google 地圖</div>
+                    <div class="date" style="margin-bottom: 12px;">${review.created_at}</div>
+                    
+                    <!-- 新增：每張卡片專屬的兩顆功能按鈕 -->
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button onclick="window.location.href='${mapUrl}'" style="background-color: #4b88eb; flex: 1; padding: 8px; font-size: 0.9em; border-radius: 5px;">🗺️ 查看地圖</button>
+                        <button onclick="window.location.href='${writeReviewUrl}'" style="background-color: #f5c518; color: #333; flex: 1; padding: 8px; font-size: 0.9em; border-radius: 5px;">⭐ 寫這間的評價</button>
+                    </div>
                 `;
                 container.appendChild(card);
             });
@@ -97,14 +103,6 @@
 
             document.getElementById('currentToilet').style.display = "block";
             document.getElementById('currentToilet').innerText = `「${toiletName}」的搜尋結果：`;
-            // --- 新增這段：動態產生寫評價的專屬按鈕 ---
-            const writeReviewUrl = `https://liff.line.me/2011608763-NWNQFgKI?toilet_id=${encodeURIComponent(toiletName)}`;
-            document.getElementById('writeReviewBtnContainer').innerHTML = `
-                <button onclick="window.location.href='${writeReviewUrl}'" 
-                    style="background-color: #f5c518; color: #333; width: 100%; font-weight: bold; padding: 12px; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    撰寫「${toiletName}」的評價
-                    </button>
-            `;
             document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>資料載入中... ⏳</div>";
 
             try {
