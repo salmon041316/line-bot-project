@@ -5,12 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>查看廁所評價</title>
     <style>
-        /* 美編同學可以修改這裡的 CSS */
         body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; }
         .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
         input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
         button { background-color: #769382; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
-        .review-card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        /* 卡片新增了 hover 動畫，讓它按起來更有質感 */
+        .review-card { 
+            background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s;
+        }
+        .review-card:active { transform: scale(0.98); } /* 點下去會有縮放效果 */
+        
         .stars { color: #f5c518; font-size: 1.2em; margin-bottom: 5px; }
         .date { color: #999; font-size: 0.8em; margin-top: 10px; text-align: right; }
         .no-data { text-align: center; color: #666; margin-top: 30px; }
@@ -20,7 +26,6 @@
 
     <h2>🔍 查詢廁所評價</h2>
     
-    <!-- 搜尋區塊 -->
     <div class="search-box">
         <input type="text" id="searchInput" placeholder="請輸入廁所名稱 (例如: 捷運北門站)">
         <button onclick="fetchReviews()">搜尋</button>
@@ -28,72 +33,91 @@
 
     <h3 id="currentToilet" style="display: none;"></h3>
     
-    <!-- 這裡是用來放評價卡片的容器 -->
     <div id="reviewsContainer">
-        <div class="no-data">請在上方輸入廁所名稱來查看大家的評價！</div>
+        <div class="no-data">資料載入中... ⏳</div>
     </div>
 
     <script>
-        // 呼叫 Flask 後端 API 拿取資料
+        // 統一處理「把資料印成卡片」的邏輯
+        function renderCards(data) {
+            const container = document.getElementById('reviewsContainer');
+            container.innerHTML = ""; 
+
+            if (data.length === 0) {
+                container.innerHTML = "<div class='no-data'>目前沒有符合的評價喔！</div>";
+                return;
+            }
+
+            data.forEach(review => {
+                let starString = "★".repeat(review.stars) + "☆".repeat(5 - review.stars);
+                const card = document.createElement('div');
+                card.className = 'review-card';
+                
+                // 設定點擊卡片跳轉 Google Maps
+                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(review.toilet_name)}`;
+                card.onclick = () => {
+                    window.location.href = mapUrl;
+                };
+
+                // 卡片內容 (右下角多加了一個導航提示)
+                card.innerHTML = `
+                    <div style="font-weight: bold; color: #769382; margin-bottom: 8px;">📍 ${review.toilet_name}</div>
+                    <div class="stars">${starString}</div>
+                    <p>${review.comment ? review.comment : '<span style="color:#ccc;">(此使用者未留下文字評論)</span>'}</p>
+                    <div class="date">${review.created_at}</div>
+                    <div style="font-size: 0.8em; color: #4b88eb; text-align: right; margin-top: 5px;">👉 點擊查看 Google 地圖</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 搜尋特定廁所
         async function fetchReviews(searchName = null) {
             const inputVal = document.getElementById('searchInput').value.trim();
             const toiletName = searchName || inputVal;
 
-            if (!toiletName) {
-                alert("請先輸入廁所名稱喔！");
-                return;
-            }
+            if (!toiletName) return;
 
-            // 更新畫面狀態
             document.getElementById('currentToilet').style.display = "block";
-            document.getElementById('currentToilet').innerText = `「${toiletName}」的評價：`;
-            const container = document.getElementById('reviewsContainer');
-            container.innerHTML = "<div class='no-data'>資料載入中... ⏳</div>";
+            document.getElementById('currentToilet').innerText = `「${toiletName}」的搜尋結果：`;
+            document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>資料載入中... ⏳</div>";
 
             try {
-                // 向我們剛剛在 main.py 寫好的 API 要資料
                 const response = await fetch(`/api/reviews/${encodeURIComponent(toiletName)}`);
                 const data = await response.json();
-
-                container.innerHTML = ""; // 清空載入中的文字
-
-                if (data.length === 0) {
-                    container.innerHTML = "<div class='no-data'>目前還沒有評價喔！趕快來當第一個留言的人吧！</div>";
-                    return;
-                }
-
-                // 把撈到的評價一筆一筆做成卡片
-                data.forEach(review => {
-                    // 產生星星符號
-                    let starString = "★".repeat(review.stars) + "☆".repeat(5 - review.stars);
-
-                    const card = document.createElement('div');
-                    card.className = 'review-card';
-                    card.innerHTML = `
-                        <div style="font-weight: bold; color: #769382; margin-bottom: 8px;">📍 ${review.toilet_name}</div>
-                        <div class="stars">${starString}</div>
-                        <p>${review.comment ? review.comment : '<span style="color:#ccc;">(此使用者未留下文字評論)</span>'}</p>
-                        <div class="date">${review.created_at}</div>
-                    `;
-                    container.appendChild(card);
-                });
-
+                renderCards(data);
             } catch (err) {
-                console.error(err);
-                container.innerHTML = "<div class='no-data'>伺服器連線失敗，請稍後再試</div>";
+                document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>伺服器連線失敗</div>";
             }
         }
 
-        // 隱藏的貼心功能：如果網址本身有帶廁所名稱，一打開網頁就自動搜尋
+        // 一進網頁載入最新評價
+        async function loadLatestReviews() {
+            document.getElementById('currentToilet').style.display = "block";
+            document.getElementById('currentToilet').innerText = "✨最新評價總覽：";
+            document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>資料載入中... ⏳</div>";
+
+            try {
+                const response = await fetch('/api/reviews/latest');
+                const data = await response.json();
+                renderCards(data);
+            } catch (err) {
+                document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>伺服器連線失敗</div>";
+            }
+        }
+
+        // 判斷一進來要執行什麼
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const toiletId = urlParams.get('toilet_id');
             if (toiletId) {
                 document.getElementById('searchInput').value = toiletId;
                 fetchReviews(toiletId);
+            } else {
+                // 如果沒有指定名字，就秀出最新的評價！
+                loadLatestReviews();
             }
         };
     </script>
-
 </body>
 </html>

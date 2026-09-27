@@ -4,7 +4,7 @@ import sqlite3  # 新增：之後用來連線操作資料庫
 from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort, render_template, jsonify
-from review_logic import save_review_to_db, get_reviews_by_toilet
+from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews
 from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
@@ -126,6 +126,12 @@ def get_reviews(toilet_name):
 @app.route('/view_reviews')
 def view_reviews_page():
     return render_template('view_reviews.html')
+
+# 3. 給網頁一載入時讀取「最新評價」用的 API
+@app.route('/api/reviews/latest', methods=['GET'])
+def get_latest_reviews_api():
+    reviews = get_latest_reviews(10) # 抓最新 10 筆，數字可以自己改
+    return jsonify(reviews)
 
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
