@@ -27,7 +27,7 @@
     <h2>🔍 查詢廁所評價</h2>
     
     <div class="search-box">
-        <input type="text" id="searchInput" placeholder="請輸入廁所名稱 (例如: 捷運北門站)">
+        <input type="text" id="searchInput" placeholder="請輸入廁所名稱 (例如: 臺北商業大學)">
         <button onclick="fetchReviews()">搜尋</button>
     </div>
 
@@ -39,27 +39,40 @@
 
     <script>
         // 統一處理「把資料印成卡片」的邏輯
-        function renderCards(data) {
+        // 加上 keyword 參數，讓系統知道使用者剛剛搜了什麼
+        function renderCards(data, keyword = "") {
             const container = document.getElementById('reviewsContainer');
             container.innerHTML = ""; 
 
+            // 如果找不到資料 (長度為 0)
             if (data.length === 0) {
-                container.innerHTML = "<div class='no-data'>目前沒有符合的評價喔！</div>";
+                if (keyword) {
+                    // 自動產生地圖搜尋網址
+                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(keyword)}`;
+                    // 印出專屬的 Google Maps 捷徑卡片
+                    container.innerHTML = `
+                        <div class="no-data" style="margin-bottom: 15px;">目前還沒有人留下「${keyword}」的評價喔！</div>
+                        <div class="review-card" onclick="window.location.href='${mapUrl}'" style="text-align: center; background-color: #f0f7f4; border: 2px dashed #769382;">
+                            <div style="font-weight: bold; color: #769382; font-size: 1.2em; margin-bottom: 10px;">📍 尋找附近的 ${keyword}</div>
+                            <p style="color: #555; margin: 0;">點擊這裡，直接為您開啟 Google 地圖搜尋結果！</p>
+                            <div style="font-size: 0.9em; color: #4b88eb; margin-top: 10px;">👉 前往 Google Maps</div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = "<div class='no-data'>目前暫無評價，或沒有符合該關鍵字的結果喔！</div>";
+                }
                 return;
             }
 
+            // 下面是原本印出評價卡片的程式碼 (保持不變)
             data.forEach(review => {
                 let starString = "★".repeat(review.stars) + "☆".repeat(5 - review.stars);
                 const card = document.createElement('div');
                 card.className = 'review-card';
                 
-                // 設定點擊卡片跳轉 Google Maps
                 const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(review.toilet_name)}`;
-                card.onclick = () => {
-                    window.location.href = mapUrl;
-                };
+                card.onclick = () => { window.location.href = mapUrl; };
 
-                // 卡片內容 (右下角多加了一個導航提示)
                 card.innerHTML = `
                     <div style="font-weight: bold; color: #769382; margin-bottom: 8px;">📍 ${review.toilet_name}</div>
                     <div class="stars">${starString}</div>
@@ -85,7 +98,7 @@
             try {
                 const response = await fetch(`/api/reviews/${encodeURIComponent(toiletName)}`);
                 const data = await response.json();
-                renderCards(data);
+                renderCards(data, toiletName);
             } catch (err) {
                 document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>伺服器連線失敗</div>";
             }
