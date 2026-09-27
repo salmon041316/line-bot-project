@@ -10,13 +10,10 @@
         input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
         button { background-color: #769382; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
         
-        /* 卡片新增了 hover 動畫，讓它按起來更有質感 */
         .review-card { 
             background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;
         }
-        .review-card:active { transform: scale(0.98); } /* 點下去會有縮放效果 */
-        
         .stars { color: #f5c518; font-size: 1.2em; margin-bottom: 5px; }
         .date { color: #999; font-size: 0.8em; margin-top: 10px; text-align: right; }
         .no-data { text-align: center; color: #666; margin-top: 30px; }
@@ -27,7 +24,7 @@
     <h2>🔍 查詢廁所評價</h2>
     
     <div class="search-box">
-        <input type="text" id="searchInput" placeholder="請輸入廁所名稱 (例如: 臺北商業大學)">
+        <input type="text" id="searchInput" placeholder="請輸入廁所名稱 (例如: 捷運北門站)">
         <button onclick="fetchReviews()">搜尋</button>
     </div>
 
@@ -39,15 +36,16 @@
 
     <script>
         // 統一處理「把資料印成卡片」的邏輯
-        // 加上 keyword 參數，讓系統知道使用者剛剛搜了什麼
         function renderCards(data, keyword = "") {
             const container = document.getElementById('reviewsContainer');
             container.innerHTML = ""; 
 
             // 如果找不到資料 (長度為 0)
-            if (keyword) {
+            if (data.length === 0) {
+                if (keyword) {
+                    // 自動產生地圖搜尋網址
                     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(keyword)}`;
-                    // 填寫評價的 LIFF 網址 (請確認這是你們原本新增評價的那串 LIFF URL)
+                    // 填寫評價的 LIFF 網址
                     const writeReviewUrl = `https://liff.line.me/2011608763-NWNQFgKI?toilet_id=${encodeURIComponent(keyword)}`;
                     
                     container.innerHTML = `
@@ -55,19 +53,22 @@
                         
                         <div class="review-card" style="text-align: center; background-color: #f0f7f4; border: 2px dashed #769382;">
                             <div style="font-weight: bold; color: #769382; font-size: 1.2em; margin-bottom: 10px;">📍 找不到專屬評價</div>
-                            <p style="color: #555; margin-bottom: 15px;">您可以先前往Google地圖確認位置，或是由您來為大家建立第一筆廁所評價！</p>
+                            <p style="color: #555; margin-bottom: 15px;">您可以先前往 Google 地圖確認位置，或是由您來為大家建立第一筆廁所評價！</p>
                             
-                            <!-- 兩顆按鈕：一個去地圖，一個去寫評價 -->
+                            <!-- 找不到資料時的備用雙按鈕 -->
                             <div style="display: flex; gap: 10px; justify-content: center;">
                                 <button onclick="window.location.href='${mapUrl}'" style="background-color: #4b88eb; flex: 1;">🗺️ 查看地圖</button>
-                                <button onclick="window.location.href='${writeReviewUrl}'" style="background-color: #f5c518; color: #333; flex: 1;">⭐ 寫下第一筆評價吧！</button>
+                                <button onclick="window.location.href='${writeReviewUrl}'" style="background-color: #f5c518; color: #333; flex: 1;">⭐ 寫下首評</button>
                             </div>
                         </div>
                     `;
+                } else {
+                    container.innerHTML = "<div class='no-data'>目前暫無評價，或沒有符合該關鍵字的結果喔！</div>";
                 }
+                return;
+            }
 
-            // 下面是原本印出評價卡片的程式碼 (保持不變)
-            // 這是原本產生卡片的迴圈，我們把按鈕加到卡片裡面！
+            // 印出評價卡片的程式碼
             data.forEach(review => {
                 let starString = "★".repeat(review.stars) + "☆".repeat(5 - review.stars);
                 const card = document.createElement('div');
@@ -75,7 +76,6 @@
                 
                 // 針對這間「特定的廁所」產生專屬的兩個網址
                 const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(review.toilet_name)}`;
-                // 請確認這是你們寫評價的 LIFF 網址
                 const writeReviewUrl = `https://liff.line.me/2011608763-NWNQFgKI?toilet_id=${encodeURIComponent(review.toilet_name)}`;
 
                 card.innerHTML = `
@@ -84,7 +84,7 @@
                     <p>${review.comment ? review.comment : '<span style="color:#ccc;">(此使用者未留下文字評論)</span>'}</p>
                     <div class="date" style="margin-bottom: 12px;">${review.created_at}</div>
                     
-                    <!-- 新增：每張卡片專屬的兩顆功能按鈕 -->
+                    <!-- 每張卡片專屬的兩顆功能按鈕 -->
                     <div style="display: flex; gap: 10px; justify-content: center;">
                         <button onclick="window.location.href='${mapUrl}'" style="background-color: #4b88eb; flex: 1; padding: 8px; font-size: 0.9em; border-radius: 5px;">🗺️ 查看地圖</button>
                         <button onclick="window.location.href='${writeReviewUrl}'" style="background-color: #f5c518; color: #333; flex: 1; padding: 8px; font-size: 0.9em; border-radius: 5px;">⭐ 寫這間的評價</button>
@@ -110,24 +110,23 @@
                 const data = await response.json();
                 renderCards(data, toiletName);
             } catch (err) {
-                document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>伺服器連線失敗</div>";
+                document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>伺服器連線失敗 😢</div>";
             }
         }
 
         // 一進網頁載入最新評價
         async function loadLatestReviews() {
-
-            document.getElementById('writeReviewBtnContainer').innerHTML = ""; // 新增這行清空按鈕
             document.getElementById('currentToilet').style.display = "block";
-            document.getElementById('currentToilet').innerText = "✨最新評價總覽：";
+            document.getElementById('currentToilet').innerText = "✨ 最新評價總覽：";
             document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>資料載入中... ⏳</div>";
 
             try {
                 const response = await fetch('/api/reviews/latest');
                 const data = await response.json();
-                renderCards(data);
+                // 載入最新評價時，不需要傳入關鍵字
+                renderCards(data, "");
             } catch (err) {
-                document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>伺服器連線失敗</div>";
+                document.getElementById('reviewsContainer').innerHTML = "<div class='no-data'>伺服器連線失敗 😢</div>";
             }
         }
 
@@ -139,7 +138,6 @@
                 document.getElementById('searchInput').value = toiletId;
                 fetchReviews(toiletId);
             } else {
-                // 如果沒有指定名字，就秀出最新的評價！
                 loadLatestReviews();
             }
         };
