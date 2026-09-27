@@ -45,24 +45,26 @@
             container.innerHTML = ""; 
 
             // 如果找不到資料 (長度為 0)
-            if (data.length === 0) {
-                if (keyword) {
-                    // 自動產生地圖搜尋網址
+            if (keyword) {
                     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(keyword)}`;
-                    // 印出專屬的 Google Maps 捷徑卡片
+                    // 填寫評價的 LIFF 網址 (請確認這是你們原本新增評價的那串 LIFF URL)
+                    const writeReviewUrl = `https://liff.line.me/2011608763-NWNQFgKI?toilet_id=${encodeURIComponent(keyword)}`;
+                    
                     container.innerHTML = `
                         <div class="no-data" style="margin-bottom: 15px;">目前還沒有人留下「${keyword}」的評價喔！</div>
-                        <div class="review-card" onclick="window.location.href='${mapUrl}'" style="text-align: center; background-color: #f0f7f4; border: 2px dashed #769382;">
-                            <div style="font-weight: bold; color: #769382; font-size: 1.2em; margin-bottom: 10px;">📍 尋找附近的 ${keyword}</div>
-                            <p style="color: #555; margin: 0;">點擊這裡，直接為您開啟 Google 地圖搜尋結果！</p>
-                            <div style="font-size: 0.9em; color: #4b88eb; margin-top: 10px;">👉 前往 Google Maps</div>
+                        
+                        <div class="review-card" style="text-align: center; background-color: #f0f7f4; border: 2px dashed #769382;">
+                            <div style="font-weight: bold; color: #769382; font-size: 1.2em; margin-bottom: 10px;">📍 找不到專屬評價</div>
+                            <p style="color: #555; margin-bottom: 15px;">您可以先前往Google地圖確認位置，或是由您來為大家建立第一筆廁所評價！</p>
+                            
+                            <!-- 兩顆按鈕：一個去地圖，一個去寫評價 -->
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <button onclick="window.location.href='${mapUrl}'" style="background-color: #4b88eb; flex: 1;">🗺️ 查看地圖</button>
+                                <button onclick="window.location.href='${writeReviewUrl}'" style="background-color: #f5c518; color: #333; flex: 1;">⭐ 寫下第一筆評價吧！</button>
+                            </div>
                         </div>
                     `;
-                } else {
-                    container.innerHTML = "<div class='no-data'>目前暫無評價，或沒有符合該關鍵字的結果喔！</div>";
                 }
-                return;
-            }
 
             // 下面是原本印出評價卡片的程式碼 (保持不變)
             data.forEach(review => {
