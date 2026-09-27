@@ -4,7 +4,7 @@ import sqlite3  # 新增：之後用來連線操作資料庫
 from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort, render_template, jsonify
-from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews
+from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews, search_toilets_from_master
 from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
@@ -133,6 +133,12 @@ def view_reviews_page():
 def get_latest_reviews_api():
     reviews = get_latest_reviews(10) # 抓最新 10 筆，數字可以自己改
     return jsonify(reviews)
+
+# 4. 搜尋廁所總表的 API
+@app.route('/api/search_toilets/<keyword>', methods=['GET'])
+def api_search_toilets(keyword):
+    results = search_toilets_from_master(keyword)
+    return jsonify(results)
 
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
@@ -278,7 +284,7 @@ def handle_text(event):
                     # 第二顆按鈕：點擊後機器人會自動回覆教學文字
                     MessageTemplateAction(
                         label='✏️ 怎麼寫評價？',
-                        text='【如何寫評價？】\n請先點選選單的「找廁所」或「地址」搜尋，找到目標廁所後，直接點擊卡片下方的「⭐ 留下評價」按鈕，就可以開始評分囉！'
+                        text='【如何寫評價？】\n請先點選下方選單的「地址」搜尋，找到目標廁所後，直接點擊卡片下方的「⭐ 留下評價」按鈕，就可以開始評分囉！'
                     )
                 ]
             )

@@ -103,3 +103,32 @@ def get_latest_reviews(limit=10):
         
     finally:
         conn.close()
+
+def search_toilets_from_master(keyword):
+    # 從系統的「廁所主資料表」中，模糊搜尋包含關鍵字的廁所名稱
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        conn.row_factory = sqlite3.Row 
+        cursor = conn.cursor()
+        
+        # 請將 'toilet_info' 和 'name' 替換成妳們資料庫實際的名稱
+        cursor.execute('''
+            SELECT name AS toilet_name 
+            FROM toilets 
+            WHERE name LIKE ?
+        ''', (f'%{keyword}%',))
+        
+        rows = cursor.fetchall()
+        
+        result_list = []
+        for row in rows:
+            result_list.append({"toilet_name": row["toilet_name"]})
+            
+        return result_list
+        
+    except Exception as e:
+        print(f"搜尋廁所資料庫失敗: {e}")
+        return [] 
+        
+    finally:
+        conn.close()
