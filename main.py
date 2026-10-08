@@ -1,6 +1,7 @@
 import os
 import csv
 import sqlite3  # 新增：之後用來連線操作資料庫
+import random
 from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort, render_template, jsonify
@@ -137,27 +138,41 @@ def submit_review_api():
     success = save_review_to_db(user_id, toilet_name, stars, comment)
 
     if success:
-        # 2. 儲存成功後，計算該使用者總共留過幾次評價
         review_count = get_user_review_count(user_id)
         
-        # 3. 判斷是否達標 (設定為：每累積 3 則就送一張)
+        # 3. 判斷是否達到抽獎門檻 (每滿 5 則獲得一次抽獎機會)
         if review_count > 0 and review_count % 5 == 0:
-            coupon = get_random_coupon()
-            # 如果資料庫裡剛好有發布折價券，就把獎勵一起包裝回傳
-            if coupon:
-                return jsonify({
-                    "status": "success", 
-                    "message": "評價已成功儲存！",
-                    "reward": True,                  # 告訴前端「有中獎」
-                    "review_count": review_count,    # 告訴前端這是第幾則
-                    "coupon_data": coupon            # 附上抽中的折價券明細
-                }), 200
+            
+            # 加入機率機制：例如設定 20% 的中獎率
+            is_winner = random.random() < 0.2
+            
+            if is_winner:
+                coupon = get_random_coupon()
+                if coupon:
+                    return jsonify({
+                        "status": "success", 
+                        "message": "評價已成功儲存！",
+                        "reward": True,
+                        "is_draw_time": True,  
+                        "review_count": review_count,
+                        "coupon_data": coupon
+                    }), 200
 
-        # 如果沒達標，或是後台目前沒發布折價券，就回傳一般的成功訊息
+            # 沒中獎（或是資料庫剛好沒折價券）
+            return jsonify({
+                "status": "success", 
+                "message": "評價已成功儲存！",
+                "reward": False,
+                "is_draw_time": True,  
+                "review_count": review_count
+            }), 200
+
+        # 如果還沒滿 5 則 (不具備抽獎資格)
         return jsonify({
             "status": "success", 
             "message": "評價已成功儲存！",
             "reward": False,
+            "is_draw_time": False, 
             "review_count": review_count
         }), 200
     else:

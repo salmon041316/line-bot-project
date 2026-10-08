@@ -104,16 +104,13 @@
                 const result = await response.json();
 
                 if (result.reward === true) {
-                        // 產生一組 8 碼的隨機序號 (例如: X9K2-M4P1)
+                        // 狀態 1：🎉 中獎了
                         const serialCode = Math.random().toString(36).substring(2, 6).toUpperCase() + "-" + 
                                            Math.random().toString(36).substring(2, 6).toUpperCase();
-                        
-                        // 呼叫免費 API，把序號變成 QR Code 圖片網址
                         const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${serialCode}`;
 
-                        // 用 SweetAlert 顯示超美中獎畫面
                         Swal.fire({
-                            title: '🎉 優惠解鎖',
+                            title: '🎉 幸運中獎',
                             html: `
                                 <p>這是您的第 <b>${result.review_count}</b> 則評價！</p>
                                 <p>獲得專屬優惠：<br><strong style="color:#d33; font-size:1.2em;">【${result.coupon_data.vendor_name}】${result.coupon_data.coupon_text}</strong></p>
@@ -128,17 +125,27 @@
                             confirmButtonColor: '#769382',
                             allowOutsideClick: false
                         }).then(() => {
-                            liff.closeWindow(); // 按下開心收下後關閉視窗
+                            liff.closeWindow(); 
+                        });
+
+                    } else if (result.is_draw_time === true) {
+                        // 狀態 2：💨 有抽獎，但銘謝惠顧
+                        Swal.fire({
+                            title: '銘謝惠顧',
+                            text: `評價送出成功！這是您的第 ${result.review_count} 則評價，可惜這次沒有抽中折價券。再累積 5 則獲得下一次抽獎機會吧！`,
+                            icon: 'info',
+                            confirmButtonText: '再接再厲',
+                            confirmButtonColor: '#95a5a6'
+                        }).then(() => {
+                            liff.closeWindow();
                         });
 
                     } else {
-                        // 動態計算距離下一次抽獎還差幾次
+                        // 狀態 3：⏳ 一般累積中
                         const remainCount = 5 - (result.review_count % 5);
-                        
-                        // 沒中獎也換成漂亮的 SweetAlert
                         Swal.fire({
                             title: '✅ 評價送出成功！',
-                            text: `感謝分享！您目前已累積 ${result.review_count} 則評價，只要再 ${remainCount} 則，就能再次解鎖優惠券喔！`,
+                            text: `感謝分享！您目前已累積 ${result.review_count} 則評價，只要再 ${remainCount} 則，就能解鎖下一次的【隨機折價券抽獎機會】喔！`,
                             icon: 'success',
                             confirmButtonText: '確定',
                             confirmButtonColor: '#769382'
