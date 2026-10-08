@@ -132,6 +132,7 @@ def search_toilets_from_master(keyword):
         
     finally:
         conn.close()
+
 # --- 管理者後台專用功能 ---
 
 def get_all_reviews_for_admin():
@@ -171,5 +172,36 @@ def delete_review_by_id(review_id):
     except Exception as e:
         print(f"刪除評價失敗: {e}")
         return False
+    finally:
+        conn.close()
+
+def add_coupon(vendor_name, coupon_text, target_keyword):
+    """新增一張折價券到資料庫"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO coupons (vendor_name, coupon_text, target_keyword) 
+            VALUES (?, ?, ?)
+        ''', (vendor_name, coupon_text, target_keyword))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"新增折價券失敗: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_all_coupons():
+    """撈出所有已發布的折價券"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM coupons ORDER BY id DESC')
+        return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"撈取折價券失敗: {e}")
+        return []
     finally:
         conn.close()

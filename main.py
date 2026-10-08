@@ -4,7 +4,7 @@ import sqlite3  # 新增：之後用來連線操作資料庫
 from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort, render_template, jsonify
-from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews, search_toilets_from_master, get_all_reviews_for_admin, delete_review_by_id
+from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews, search_toilets_from_master, get_all_reviews_for_admin, delete_review_by_id, add_coupon, get_all_coupons
 from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
@@ -188,6 +188,29 @@ def api_delete_review(review_id):
         return jsonify({"status": "success", "message": "刪除成功！"})
     else:
         return jsonify({"status": "error", "message": "刪除失敗"}), 500
+
+@app.route('/api/admin/coupons', methods=['GET'])
+def api_get_coupons():
+    """取得所有折價券 (需密碼)"""
+    pwd = request.args.get('pwd')
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"status": "error", "message": "無權限"}), 401
+    return jsonify(get_all_coupons())
+
+@app.route('/api/admin/coupons', methods=['POST'])
+def api_add_coupon():
+    """發布新折價券 (需密碼)"""
+    pwd = request.args.get('pwd')
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"status": "error", "message": "無權限"}), 401
+        
+    data = request.get_json()
+    success = add_coupon(data.get('vendor_name'), data.get('coupon_text'), data.get('target_keyword'))
+    
+    if success:
+        return jsonify({"status": "success", "message": "發布成功！"})
+    else:
+        return jsonify({"status": "error", "message": "發布失敗"}), 500
 
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
