@@ -132,10 +132,13 @@
                         });
 
                     } else {
+                        // 動態計算距離下一次抽獎還差幾次
+                        const remainCount = 5 - (result.review_count % 5);
+                        
                         // 沒中獎也換成漂亮的 SweetAlert
                         Swal.fire({
                             title: '✅ 評價送出成功！',
-                            text: `感謝分享！(您已累積 ${result.review_count} 則評價，滿 5 則即可解鎖優惠券喔！)`,
+                            text: `感謝分享！您目前已累積 ${result.review_count} 則評價，只要再 ${remainCount} 則，就能再次解鎖隱藏商圈優惠喔！`,
                             icon: 'success',
                             confirmButtonText: '確定',
                             confirmButtonColor: '#769382'
