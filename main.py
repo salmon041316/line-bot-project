@@ -161,16 +161,28 @@ def get_latest_reviews_api():
 # ---------------------------------------------------------
 # 【管理者後台專用 API】
 # ---------------------------------------------------------
+# 設定後台專用密碼
+ADMIN_PASSWORD = "!QAZ2wsxadmin"
 
 @app.route('/api/admin/reviews', methods=['GET'])
 def api_get_all_reviews():
-    """撈取系統內所有評價資料，供後台列表顯示"""
+    """撈取系統內所有評價資料，供後台列表顯示 (需密碼驗證)"""
+    # 接收網址傳來的密碼
+    pwd = request.args.get('pwd')
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"status": "error", "message": "密碼錯誤或無權限"}), 401
+
     data = get_all_reviews_for_admin()
     return jsonify(data)
 
 @app.route('/api/admin/reviews/<int:review_id>', methods=['DELETE'])
 def api_delete_review(review_id):
-    """根據評價 ID 刪除特定評價 (防呆與惡意洗版處置)"""
+    """根據評價 ID 刪除特定評價 (需密碼驗證)"""
+    # 刪除時同樣需要驗證密碼
+    pwd = request.args.get('pwd')
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"status": "error", "message": "密碼錯誤或無權限"}), 401
+
     success = delete_review_by_id(review_id)
     if success:
         return jsonify({"status": "success", "message": "刪除成功！"})

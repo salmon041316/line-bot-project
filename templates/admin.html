@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>找廁所系統 - 營運管理後台</title>
-    <!-- 直接引入 Bootstrap 幫我們美化網頁 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f7f6; }
@@ -17,10 +16,27 @@
         <h2>🛠️ 找廁所系統 - 營運管理後台</h2>
     </div>
 
-    <div class="container">
+    <!-- ================= 登入區塊 ================= -->
+    <div class="container" id="loginSection" style="max-width: 400px; margin-top: 80px;">
+        <div class="card shadow">
+            <div class="card-header bg-white text-center pt-3 pb-3">
+                <h4 class="mb-0">🔐 管理員登入</h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <input type="password" id="adminPwd" class="form-control" placeholder="請輸入管理密碼">
+                </div>
+                <button class="btn btn-primary w-100 fw-bold" onclick="verifyLogin()">登入系統</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 評價管理區塊 (預設隱藏) ================= -->
+    <div class="container" id="adminSection" style="display: none;">
         <div class="card shadow-sm">
-            <div class="card-header bg-white">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h4 class="mb-0 pt-2 pb-2">📋 評價審查列表</h4>
+                <button class="btn btn-outline-secondary btn-sm" onclick="logout()">登出</button>
             </div>
             <div class="card-body">
                 <table class="table table-hover align-middle">
@@ -35,8 +51,7 @@
                         </tr>
                     </thead>
                     <tbody id="reviewTableBody">
-                        <!-- 資料會透過底下的 JavaScript 動態生出來 -->
-                        <tr><td colspan="6" class="text-center">資料載入中...</td></tr>
+                        <!-- 資料動態產生 -->
                     </tbody>
                 </table>
             </div>
@@ -44,57 +59,82 @@
     </div>
 
     <script>
-        // 一進網頁就去後台 API 撈取所有評價
-        async function loadAdminReviews() {
-            try {
-                const response = await fetch('/api/admin/reviews');
-                const data = await response.json();
-                
-                const tbody = document.getElementById('reviewTableBody');
-                tbody.innerHTML = ""; // 清空載入中文字
+        // 用來暫存成功登入的密碼
+        let savedPwd = "";
 
-                if (data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">目前系統內沒有任何評價。</td></tr>';
+        // 1. 驗證密碼並登入
+        async function verifyLogin() {
+            const pwdInput = document.getElementById('adminPwd').value.trim();
+            if (!pwdInput) {
+                alert("請輸入密碼！");
+                return;
+            }
+
+            try {
+                // 帶著密碼去敲門 (GET)
+                const response = await fetch(`/api/admin/reviews?pwd=${encodeURIComponent(pwdInput)}`);
+                
+                if (response.status === 401) {
+                    alert("❌ 密碼錯誤，您無權限訪問！");
                     return;
                 }
 
-                // 把每一筆評價畫成表格裡的一行 (tr)
-                data.forEach(review => {
-                    let stars = "⭐".repeat(review.stars);
-                    let comment = review.comment ? review.comment : '<span class="text-muted">無文字評論</span>';
-                    
-                    const row = `
-                        <tr>
-                            <td>#${review.id}</td>
-                            <td class="fw-bold text-success">${review.toilet_name}</td>
-                            <td>${stars}</td>
-                            <td>${comment}</td>
-                            <td><small class="text-muted">${review.created_at}</small></td>
-                            <td>
-                                <button class="btn btn-danger btn-sm" onclick="deleteReview(${review.id})">
-                                    🗑️ 刪除
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                    tbody.innerHTML += row;
-                });
-
+                const data = await response.json();
+                
+                // 密碼正確：把密碼存起來，切換畫面顯示
+                savedPwd = pwdInput;
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('adminSection').style.display = 'block';
+                
+                // 印出表格資料
+                renderTable(data);
+                
             } catch (err) {
-                alert("無法連線到伺服器，請檢查網路狀態！");
+                alert("伺服器連線失敗，請稍後再試！");
             }
         }
 
-        // 點擊刪除按鈕時執行的功能
+        // 2. 將撈到的資料畫成表格
+        function renderTable(data) {
+            const tbody = document.getElementById('reviewTableBody');
+            tbody.innerHTML = ""; 
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">目前系統內沒有任何評價。</td></tr>';
+                return;
+            }
+
+            data.forEach(review => {
+                let stars = "⭐".repeat(review.stars);
+                let comment = review.comment ? review.comment : '<span class="text-muted">無文字評論</span>';
+                
+                const row = `
+                    <tr>
+                        <td>#${review.id}</td>
+                        <td class="fw-bold text-success">${review.toilet_name}</td>
+                        <td>${stars}</td>
+                        <td>${comment}</td>
+                        <td><small class="text-muted">${review.created_at}</small></td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteReview(${review.id})">
+                                🗑️ 刪除
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // 3. 刪除評價 (需帶上暫存的密碼)
         async function deleteReview(id) {
-            // 跳出確認視窗，避免手滑誤刪
             if (!confirm(`確定要刪除 ID 為 #${id} 的這筆評價嗎？此操作無法復原！`)) {
                 return; 
             }
 
             try {
-                // 呼叫我們剛剛寫的 DELETE API
-                const response = await fetch(`/api/admin/reviews/${id}`, {
+                // 呼叫 DELETE API 並帶上密碼參數
+                const response = await fetch(`/api/admin/reviews/${id}?pwd=${encodeURIComponent(savedPwd)}`, {
                     method: 'DELETE'
                 });
                 
@@ -102,7 +142,7 @@
                 
                 if (result.status === "success") {
                     alert("✅ 評價已成功刪除！");
-                    loadAdminReviews(); // 重新整理表格
+                    refreshData(); // 刪除成功後重新抓取最新資料
                 } else {
                     alert("❌ 刪除失敗：" + result.message);
                 }
@@ -111,8 +151,20 @@
             }
         }
 
-        // 啟動函數
-        window.onload = loadAdminReviews;
+        // 4. 重新整理資料
+        async function refreshData() {
+            const response = await fetch(`/api/admin/reviews?pwd=${encodeURIComponent(savedPwd)}`);
+            const data = await response.json();
+            renderTable(data);
+        }
+
+        // 5. 登出功能
+        function logout() {
+            savedPwd = "";
+            document.getElementById('adminPwd').value = "";
+            document.getElementById('adminSection').style.display = 'none';
+            document.getElementById('loginSection').style.display = 'block';
+        }
     </script>
 </body>
 </html>
