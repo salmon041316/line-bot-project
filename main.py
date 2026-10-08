@@ -143,8 +143,8 @@ def submit_review_api():
         # 3. 判斷是否達到抽獎門檻 (每滿 5 則獲得一次抽獎機會)
         if review_count > 0 and review_count % 5 == 0:
             
-            # 加入機率機制：例如設定 30% 的中獎率
-            is_winner = random.random() < 0.3
+            # 加入機率機制：例如設定 50% 的中獎率
+            is_winner = random.random() < 0.5
             
             if is_winner:
                 coupon = get_random_coupon()
