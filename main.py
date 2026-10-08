@@ -4,7 +4,8 @@ import sqlite3  # 新增：之後用來連線操作資料庫
 from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort, render_template, jsonify
-from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews, search_toilets_from_master, get_all_reviews_for_admin, delete_review_by_id, add_coupon, get_all_coupons
+from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews, search_toilets_from_master, \
+    get_all_reviews_for_admin, delete_review_by_id, add_coupon, get_all_coupons, get_user_review_count, get_random_coupon
 from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
@@ -125,37 +126,42 @@ def admin_page():
 
 @app.route('/api/review', methods=['POST'])
 def submit_review_api():
-    """接收前端傳來的評價資料並寫入資料庫"""
+    """接收前端傳來的評價資料並寫入資料庫，包含 UGC 評價獎勵機制"""
     data = request.get_json()
     user_id = data.get('user_id')
     toilet_name = data.get('toilet_name')
     stars = data.get('stars')
     comment = data.get('comment', '') 
 
+    # 1. 先將評價存入資料庫
     success = save_review_to_db(user_id, toilet_name, stars, comment)
 
     if success:
-        return jsonify({"status": "success", "message": "評價已成功儲存！"}), 200
+        # 2. 儲存成功後，計算該使用者總共留過幾次評價
+        review_count = get_user_review_count(user_id)
+        
+        # 3. 判斷是否達標 (設定為：每累積 3 則就送一張)
+        if review_count > 0 and review_count % 5 == 0:
+            coupon = get_random_coupon()
+            # 如果資料庫裡剛好有發布折價券，就把獎勵一起包裝回傳
+            if coupon:
+                return jsonify({
+                    "status": "success", 
+                    "message": "評價已成功儲存！",
+                    "reward": True,                  # 告訴前端「有中獎」
+                    "review_count": review_count,    # 告訴前端這是第幾則
+                    "coupon_data": coupon            # 附上抽中的折價券明細
+                }), 200
+
+        # 如果沒達標，或是後台目前沒發布折價券，就回傳一般的成功訊息
+        return jsonify({
+            "status": "success", 
+            "message": "評價已成功儲存！",
+            "reward": False,
+            "review_count": review_count
+        }), 200
     else:
         return jsonify({"status": "error", "message": "儲存失敗"}), 500
-
-@app.route('/api/reviews/<toilet_name>', methods=['GET'])
-def get_reviews(toilet_name):
-    """(第一關搜尋) 根據廁所名稱查詢所有相關的實體評價"""
-    reviews = get_reviews_by_toilet(toilet_name)
-    return jsonify(reviews)
-
-@app.route('/api/search_toilets/<keyword>', methods=['GET'])
-def api_search_toilets(keyword):
-    """(第二關搜尋) 從廁所總表中模糊搜尋包含關鍵字的廁所，供引導評價使用"""
-    results = search_toilets_from_master(keyword)
-    return jsonify(results)
-
-@app.route('/api/reviews/latest', methods=['GET'])
-def get_latest_reviews_api():
-    """獲取系統內最新 10 筆評價 (供評價總覽首頁使用)"""
-    reviews = get_latest_reviews(10)
-    return jsonify(reviews)
 
 
 # ---------------------------------------------------------

@@ -205,3 +205,46 @@ def get_all_coupons():
         return []
     finally:
         conn.close()
+
+# ==========================================
+# 🎁 OMO 商業獎勵機制專區 (UGC 評價獎勵)
+# ==========================================
+
+def get_user_review_count(user_id):
+    """計算特定使用者目前總共留過幾則評價"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        cursor = conn.cursor()
+        
+        # 用 COUNT(*) 來計算這個 user_id 出現過幾次
+        cursor.execute('SELECT COUNT(*) FROM reviews WHERE user_id = ?', (user_id,))
+        count = cursor.fetchone()[0]
+        
+        return count
+        
+    except Exception as e:
+        print(f"計算評價數量失敗: {e}")
+        return 0
+    finally:
+        conn.close()
+
+def get_random_coupon():
+    """隨機抽出一張系統內發布的折價券當作獎勵"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # 利用 ORDER BY RANDOM() 隨機洗牌，並 LIMIT 1 只抽第一張
+        cursor.execute('SELECT * FROM coupons ORDER BY RANDOM() LIMIT 1')
+        row = cursor.fetchone()
+        
+        if row:
+            return dict(row)
+        return None
+        
+    except Exception as e:
+        print(f"抽取折價券失敗: {e}")
+        return None
+    finally:
+        conn.close()
