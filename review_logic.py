@@ -132,3 +132,44 @@ def search_toilets_from_master(keyword):
         
     finally:
         conn.close()
+# --- 管理者後台專用功能 ---
+
+def get_all_reviews_for_admin():
+    """撈出系統內所有的評價，供後台列表顯示"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, toilet_name, stars, comment, created_at 
+            FROM reviews 
+            ORDER BY created_at DESC
+        ''')
+        
+        rows = cursor.fetchall()
+        result_list = [dict(row) for row in rows]
+        return result_list
+        
+    except Exception as e:
+        print(f"撈取後台評價失敗: {e}")
+        return []
+    finally:
+        conn.close()
+
+def delete_review_by_id(review_id):
+    """根據評價的 ID 來刪除該筆資料"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        cursor = conn.cursor()
+        
+        # 執行刪除指令
+        cursor.execute('DELETE FROM reviews WHERE id = ?', (review_id,))
+        conn.commit()
+        return True
+        
+    except Exception as e:
+        print(f"刪除評價失敗: {e}")
+        return False
+    finally:
+        conn.close()

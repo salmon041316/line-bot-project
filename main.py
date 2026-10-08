@@ -4,7 +4,7 @@ import sqlite3  # 新增：之後用來連線操作資料庫
 from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort, render_template, jsonify
-from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews, search_toilets_from_master
+from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews, search_toilets_from_master, get_all_reviews_for_admin, delete_review_by_id
 from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
@@ -76,20 +76,56 @@ def find_nearest_toilets_shuangbei(user_lat, user_lon):
     # 5. 回傳前 5 名
     return results[:5]
 
-# ================= 3. LINE 伺服器通訊接口 (Webhook) =================
+# ================= 3. 伺服器路由與 API 通道 (Routes & API Endpoints) =================
 
-@app.route("/")  # 新增：專門給UptimeRobot敲門用的
+# ---------------------------------------------------------
+# 【系統與 LINE 核心機制】
+# ---------------------------------------------------------
+
+@app.route("/")
 def home():
+    """提供給 UptimeRobot 監控伺服器存活狀態使用的根目錄"""
     return "Hello! LINE Bot is alive!"
 
-# 評價系統：顯示網頁 (GET)
+@app.route("/callback", methods=['POST'])
+def callback():
+    """接收 LINE Server 傳來的 Webhook 訊息與事件"""
+    signature = request.headers['X-Line-Signature']
+    body = request.get_data(as_text=True)
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+    return 'OK'
+
+
+# ---------------------------------------------------------
+# 【前端網頁渲染 (HTML Pages)】
+# ---------------------------------------------------------
+
 @app.route('/review')
 def render_review_page():
+    """顯示「撰寫評價」網頁表單"""
     return render_template('review.html')
 
-# 評價系統：接收前端傳來的評價資料 (POST)
+@app.route('/view_reviews')
+def view_reviews_page():
+    """顯示「查看廁所評價與雙軌搜尋」網頁"""
+    return render_template('view_reviews.html')
+
+@app.route('/admin')
+def admin_page():
+    """顯示「營運管理後台」網頁"""
+    return render_template('admin.html') 
+
+
+# ---------------------------------------------------------
+# 【評價與搜尋系統 API (給前端網頁呼叫用)】
+# ---------------------------------------------------------
+
 @app.route('/api/review', methods=['POST'])
 def submit_review_api():
+    """接收前端傳來的評價資料並寫入資料庫"""
     data = request.get_json()
     user_id = data.get('user_id')
     toilet_name = data.get('toilet_name')
@@ -103,42 +139,43 @@ def submit_review_api():
     else:
         return jsonify({"status": "error", "message": "儲存失敗"}), 500
 
-
-@app.route("/callback", methods=['POST'])
-def callback():
-    signature = request.headers['X-Line-Signature']
-    body = request.get_data(as_text=True)
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
-    return 'OK'
-
-# 1. 給網頁讀取資料用的 API 通道
 @app.route('/api/reviews/<toilet_name>', methods=['GET'])
 def get_reviews(toilet_name):
-    # 呼叫剛剛在 review_logic.py 寫的函數
+    """(第一關搜尋) 根據廁所名稱查詢所有相關的實體評價"""
     reviews = get_reviews_by_toilet(toilet_name)
-    # 打包成 JSON 格式回傳給前端網頁
     return jsonify(reviews)
 
-
-# 2. 顯示「查看評價」網頁的通道
-@app.route('/view_reviews')
-def view_reviews_page():
-    return render_template('view_reviews.html')
-
-# 3. 給網頁一載入時讀取「最新評價」用的 API
-@app.route('/api/reviews/latest', methods=['GET'])
-def get_latest_reviews_api():
-    reviews = get_latest_reviews(10) # 抓最新 10 筆，數字可以自己改
-    return jsonify(reviews)
-
-# 4. 搜尋廁所總表的 API
 @app.route('/api/search_toilets/<keyword>', methods=['GET'])
 def api_search_toilets(keyword):
+    """(第二關搜尋) 從廁所總表中模糊搜尋包含關鍵字的廁所，供引導評價使用"""
     results = search_toilets_from_master(keyword)
     return jsonify(results)
+
+@app.route('/api/reviews/latest', methods=['GET'])
+def get_latest_reviews_api():
+    """獲取系統內最新 10 筆評價 (供評價總覽首頁使用)"""
+    reviews = get_latest_reviews(10)
+    return jsonify(reviews)
+
+
+# ---------------------------------------------------------
+# 【管理者後台專用 API】
+# ---------------------------------------------------------
+
+@app.route('/api/admin/reviews', methods=['GET'])
+def api_get_all_reviews():
+    """撈取系統內所有評價資料，供後台列表顯示"""
+    data = get_all_reviews_for_admin()
+    return jsonify(data)
+
+@app.route('/api/admin/reviews/<int:review_id>', methods=['DELETE'])
+def api_delete_review(review_id):
+    """根據評價 ID 刪除特定評價 (防呆與惡意洗版處置)"""
+    success = delete_review_by_id(review_id)
+    if success:
+        return jsonify({"status": "success", "message": "刪除成功！"})
+    else:
+        return jsonify({"status": "error", "message": "刪除失敗"}), 500
 
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
