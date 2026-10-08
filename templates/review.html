@@ -5,8 +5,13 @@
     <!-- 確保在手機上看起來比例正確 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>留下你的評價</title>
+
     <!-- 引入 LINE 官方的 LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <!-- 引入 SweetAlert2 來做超美彈跳視窗 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         /* 美編CSS */
         body { font-family: sans-serif; padding: 20px; text-align: center; }
@@ -98,24 +103,46 @@
                 // 新增：先解析後端傳回來的 JSON 資料
                 const result = await response.json();
 
-                if (response.ok && result.status === 'success') {
-                    // 🌟 核心修改：檢查後端有沒有傳回中獎通知 (reward: true)
-                    if (result.reward === true) {
-                        alert(
-                            `🎉 這是您的第 ${result.review_count} 則評價！\n\n` +
-                            `系統贈送您專屬優惠：\n` +
-                            `🎁【${result.coupon_data.vendor_name}】${result.coupon_data.coupon_text}\n\n` +
-                            `請截圖此畫面至店家兌換！`
-                        );
+                if (result.reward === true) {
+                        // 產生一組 8 碼的隨機序號 (例如: X9K2-M4P1)
+                        const serialCode = Math.random().toString(36).substring(2, 6).toUpperCase() + "-" + 
+                                           Math.random().toString(36).substring(2, 6).toUpperCase();
+                        
+                        // 呼叫免費 API，把序號變成 QR Code 圖片網址
+                        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${serialCode}`;
+
+                        // 用 SweetAlert 顯示超美中獎畫面
+                        Swal.fire({
+                            title: '🎉 優惠解鎖',
+                            html: `
+                                <p>這是您的第 <b>${result.review_count}</b> 則評價！</p>
+                                <p>獲得專屬優惠：<br><strong style="color:#d33; font-size:1.2em;">【${result.coupon_data.vendor_name}】${result.coupon_data.coupon_text}</strong></p>
+                                <div style="margin: 15px 0;">
+                                    <img src="${qrCodeUrl}" alt="QR Code" style="border: 2px solid #eee; border-radius: 10px; padding: 5px;">
+                                </div>
+                                <p style="font-size: 0.9em; color: #666;">兌換序號：${serialCode}</p>
+                                <p style="font-size: 0.8em; color: #999;">請向店員出示此畫面掃描核銷</p>
+                            `,
+                            icon: 'success',
+                            confirmButtonText: '開心收下',
+                            confirmButtonColor: '#769382',
+                            allowOutsideClick: false
+                        }).then(() => {
+                            liff.closeWindow(); // 按下開心收下後關閉視窗
+                        });
+
                     } else {
-                        // 一般的成功訊息，用進度條心理學鼓勵他繼續留言
-                        alert(`✅ 評價送出成功，感謝分享！\n(您目前已累積 ${result.review_count} 則評價，滿 5 則即可解鎖優惠券喔！)`);
+                        // 沒中獎也換成漂亮的 SweetAlert
+                        Swal.fire({
+                            title: '✅ 評價送出成功！',
+                            text: `感謝分享！(您已累積 ${result.review_count} 則評價，滿 5 則即可解鎖優惠券喔！)`,
+                            icon: 'success',
+                            confirmButtonText: '確定',
+                            confirmButtonColor: '#769382'
+                        }).then(() => {
+                            liff.closeWindow();
+                        });
                     }
-                    
-                    liff.closeWindow(); // 視窗按確定後自動關閉
-                } else {
-                    alert("❌ 儲存失敗：" + (result.message || response.status));
-                }
 
             } catch (err) {
                 // 如果過程中有任何當機，手機會直接彈出這段錯誤訊息！
