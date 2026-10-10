@@ -41,9 +41,9 @@ def get_reviews_by_toilet(keyword):
         conn.row_factory = sqlite3.Row 
         cursor = conn.cursor()
         
-        # 1. 關鍵修改：用 LIKE 取代 =，並把 toilet_name 也選出來
+        # 🌟 關鍵修改：使用 DATETIME(..., '+8 hours') 轉換為台灣時間
         cursor.execute('''
-            SELECT toilet_name, stars, comment, created_at 
+            SELECT toilet_name, stars, comment, DATETIME(created_at, '+8 hours') AS created_at 
             FROM reviews 
             WHERE toilet_name LIKE ? 
             ORDER BY created_at DESC
@@ -54,7 +54,7 @@ def get_reviews_by_toilet(keyword):
         reviews_list = []
         for row in rows:
             reviews_list.append({
-                "toilet_name": row["toilet_name"], # 2. 把廁所名稱也打包回傳
+                "toilet_name": row["toilet_name"], 
                 "stars": row["stars"],
                 "comment": row["comment"],
                 "created_at": row["created_at"]
@@ -76,9 +76,9 @@ def get_latest_reviews(limit=10):
         conn.row_factory = sqlite3.Row 
         cursor = conn.cursor()
         
-        # 只要時間最新，通通撈出來
+        # 🌟 關鍵修改：使用 DATETIME(..., '+8 hours') 轉換為台灣時間
         cursor.execute('''
-            SELECT toilet_name, stars, comment, created_at 
+            SELECT toilet_name, stars, comment, DATETIME(created_at, '+8 hours') AS created_at 
             FROM reviews 
             ORDER BY created_at DESC
             LIMIT ?
@@ -142,8 +142,9 @@ def get_all_reviews_for_admin():
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
+        # 🌟 關鍵修改：後台也一併轉換為台灣時間
         cursor.execute('''
-            SELECT id, toilet_name, stars, comment, created_at 
+            SELECT id, toilet_name, stars, comment, DATETIME(created_at, '+8 hours') AS created_at 
             FROM reviews 
             ORDER BY created_at DESC
         ''')
