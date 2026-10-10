@@ -179,6 +179,33 @@ def submit_review_api():
     else:
         return jsonify({"status": "error", "message": "儲存失敗"}), 500
 
+# ---------------------------------------------------------
+# 【前端讀取與搜尋評價 API】
+# ---------------------------------------------------------
+
+@app.route('/api/reviews', methods=['GET'])
+def api_get_reviews():
+    """前端網頁用來抓取「最新評價」或「搜尋特定廁所評價」的通道"""
+    keyword = request.args.get('keyword', '').strip()
+    
+    if keyword:
+        # 有輸入關鍵字：搜尋特定廁所的評價
+        data = get_reviews_by_toilet(keyword)
+    else:
+        # 沒輸入關鍵字：預設顯示最新評價
+        data = get_latest_reviews()
+        
+    return jsonify(data)
+
+@app.route('/api/search_toilets', methods=['GET'])
+def api_search_toilets():
+    """雙軌搜尋功能：只用關鍵字找廁所基本資料"""
+    keyword = request.args.get('keyword', '').strip()
+    if not keyword:
+        return jsonify([])
+    
+    data = search_toilets_from_master(keyword)
+    return jsonify(data)
 
 # ---------------------------------------------------------
 # 【管理者後台專用 API】
