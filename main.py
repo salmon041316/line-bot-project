@@ -183,16 +183,22 @@ def submit_review_api():
 # 【前端讀取與搜尋評價 API】
 # ---------------------------------------------------------
 
+@app.route('/api/reviews/latest', methods=['GET'])
+def api_get_latest_reviews_only():
+    """前端網頁用來抓取「最新評價」的專屬通道"""
+    data = get_latest_reviews()
+    return jsonify(data)
+
 @app.route('/api/reviews', methods=['GET'])
 def api_get_reviews():
-    """前端網頁用來抓取「最新評價」或「搜尋特定廁所評價」的通道"""
+    """前端網頁用來「搜尋特定廁所評價」的通道"""
     keyword = request.args.get('keyword', '').strip()
     
     if keyword:
         # 有輸入關鍵字：搜尋特定廁所的評價
         data = get_reviews_by_toilet(keyword)
     else:
-        # 沒輸入關鍵字：預設顯示最新評價
+        # 沒輸入關鍵字：預設顯示最新評價 (防呆機制)
         data = get_latest_reviews()
         
     return jsonify(data)
