@@ -210,9 +210,16 @@ def api_get_reviews():
         
     return jsonify(data)
 
+@app.route('/api/search_toilets/<keyword>', methods=['GET'])
+def api_search_toilets_by_keyword(keyword):
+    """前端網頁用來「搜尋廁所基本資料」的動態路徑通道 (解決 404 錯誤)"""
+    # 專門接住 /api/search_toilets/西門 這種請求
+    data = search_toilets_from_master(keyword)
+    return jsonify(data)
+
 @app.route('/api/search_toilets', methods=['GET'])
 def api_search_toilets():
-    """雙軌搜尋功能：只用關鍵字找廁所基本資料"""
+    """雙軌搜尋功能：只用關鍵字找廁所基本資料 (保留給預防萬一的查詢參數格式)"""
     keyword = request.args.get('keyword', '').strip()
     if not keyword:
         return jsonify([])
