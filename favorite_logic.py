@@ -36,7 +36,7 @@ def add_favorite(user_id, toilet_id):
     # 如果抓到資料，代表已經收藏過
     if cursor.fetchone():
         conn.close()
-        return "已經在你的收藏名單囉！"
+        return f"【{toilet_id}】已經在你的收藏名單囉！"
     
     # 如果沒收藏過，就新增一筆資料進去 (INSERT)
     cursor.execute('''
@@ -46,7 +46,7 @@ def add_favorite(user_id, toilet_id):
     
     conn.commit()
     conn.close()
-    return "❤️已加入收藏！"
+    return f"❤️ 【{toilet_id}】已加入收藏！"
 
 # 第三步：撰寫「查看我的收藏」邏輯
 def get_my_favorites(user_id):
@@ -86,7 +86,7 @@ def remove_favorite(user_id, toilet_id):
     
     if not cursor.fetchone():
         conn.close()
-        return "這間廁所不在收藏名單內"
+        return f"這間廁所【{toilet_id}】不在收藏名單內"
     
     # 步驟 2：如果有在名單裡，就執行 DELETE 把它刪掉
     cursor.execute('''
@@ -96,4 +96,4 @@ def remove_favorite(user_id, toilet_id):
     
     conn.commit()
     conn.close()
-    return "💔已取消收藏"
+    return f"💔已取消 【{toilet_id}】收藏"
