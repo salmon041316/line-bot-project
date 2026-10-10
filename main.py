@@ -189,16 +189,23 @@ def api_get_latest_reviews_only():
     data = get_latest_reviews()
     return jsonify(data)
 
+@app.route('/api/reviews/<keyword>', methods=['GET'])
+def api_search_reviews_by_keyword(keyword):
+    """前端網頁用來「搜尋特定廁所評價」的動態路徑通道 (解決 404 錯誤)"""
+    # 專門接住前端把關鍵字直接放在網址後面的請求，例如 /api/reviews/西門
+    data = get_reviews_by_toilet(keyword)
+    return jsonify(data)
+
 @app.route('/api/reviews', methods=['GET'])
 def api_get_reviews():
-    """前端網頁用來「搜尋特定廁所評價」的通道"""
+    """前端網頁用來「搜尋特定廁所評價」的查詢參數通道 (預防前端使用 ?keyword= 格式)"""
     keyword = request.args.get('keyword', '').strip()
     
     if keyword:
         # 有輸入關鍵字：搜尋特定廁所的評價
         data = get_reviews_by_toilet(keyword)
     else:
-        # 沒輸入關鍵字：預設顯示最新評價 (防呆機制)
+        # 沒輸入關鍵字：預設顯示最新評價
         data = get_latest_reviews()
         
     return jsonify(data)
