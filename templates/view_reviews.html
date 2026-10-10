@@ -16,12 +16,12 @@
             background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;
         }
-        /* 🌟 新增這段：還沒評價的專屬卡片樣式 */
+        /* 還沒評價的專屬卡片樣式 */
         .unreviewed-card {
-            background-color: #fcfcfc; /* 稍微柔和一點的灰白背景 */
+            background-color: #fcfcfc; 
             border-radius: 8px; padding: 15px; margin-bottom: 15px; 
-            border: 2px dashed #bdc3c7; /* 加上灰色虛線外框，暗示「虛位以待」 */
-            box-shadow: none; /* 拿掉陰影讓它看起來比較扁平 */
+            border: 2px dashed #bdc3c7; 
+            box-shadow: none; 
             transition: 0.2s;
         }
         .stars { color: #f5c518; font-size: 1.2em; margin-bottom: 5px; }
@@ -51,6 +51,7 @@
             if (clearContainer) container.innerHTML = ""; 
             
             data.forEach(review => {
+                // 修復星星計算邏輯，補上減號
                 let starString = "★".repeat(review.stars) + "☆".repeat(5 - review.stars);
                 const card = document.createElement('div');
                 card.className = 'review-card';
@@ -79,23 +80,21 @@
             if (clearContainer) {
                 container.innerHTML = `<div class="no-data" style="margin-bottom: 15px;">「${keyword}」目前還沒有評價，趕快來搶頭香！👇</div>`; 
             } else {
-                 // 如果是合併顯示，加一條分隔線
                  container.innerHTML += `<div style="text-align: center; color: #999; margin: 20px 0; font-size: 0.9em;">--- 以下是還沒有評價的相關廁所，趕快來搶頭香！ ---</div>`;
             }
             
             data.forEach(item => {
                 const card = document.createElement('div');
-                // ⚠️ 關鍵改變 1：套用剛剛寫好的全新 class
                 card.className = 'unreviewed-card'; 
                 
                 const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.toilet_name)}`;
                 const writeReviewUrl = `https://liff.line.me/2011608763-NWNQFgKI?toilet_id=${encodeURIComponent(item.toilet_name)}`;
 
-                // ⚠️ 關鍵改變 2：加上「尚無評價」的紅色小標籤，並把按鈕文字改成「搶先評價」
+                // 🌟 更新排版：使用 flex-direction: column 讓標籤與文字分開兩行，並設定 fit-content 防止標籤變形
                 card.innerHTML = `
-                    <div style="font-weight: bold; color: #555; margin-bottom: 15px; font-size: 1.1em;">
-                        📍 ${item.toilet_name} 
-                        <span style="font-size: 0.7em; color: #ff6b6b; border: 1px solid #ff6b6b; padding: 2px 6px; border-radius: 12px; margin-left: 5px; vertical-align: middle;">尚無評價</span>
+                    <div style="font-weight: bold; color: #555; margin-bottom: 15px; font-size: 1.1em; display: flex; flex-direction: column; gap: 6px;">
+                        <div>📍 ${item.toilet_name}</div>
+                        <div style="font-size: 0.7em; color: #ff6b6b; border: 1px solid #ff6b6b; padding: 2px 6px; border-radius: 12px; white-space: nowrap; width: fit-content;">尚無評價</div>
                     </div>
                     <div style="display: flex; gap: 10px; justify-content: center;">
                         <button onclick="window.location.href='${mapUrl}'" style="background-color: #eee; color: #555; flex: 1; padding: 10px; font-size: 0.9em; border-radius: 5px; border: none; cursor: pointer;">🗺️ 查看地圖</button>
@@ -106,7 +105,6 @@
             });
         }
 
-        // 核心搜尋邏輯：串聯兩關搜尋
         // 核心搜尋邏輯：將評價與未評價的廁所合併顯示
         async function fetchReviews(searchName = null) {
             const inputVal = document.getElementById('searchInput').value.trim();
@@ -120,37 +118,28 @@
             container.innerHTML = "<div class='no-data'>資料載入中... ⏳</div>";
 
             try {
-                // 1. 同時去兩張資料表撈資料
                 const reviewRes = await fetch(`/api/reviews/${encodeURIComponent(keyword)}`);
                 const reviewData = await reviewRes.json();
 
                 const toiletRes = await fetch(`/api/search_toilets/${encodeURIComponent(keyword)}`);
                 const toiletData = await toiletRes.json();
 
-                // 2. 清空原本的載入中文字
                 container.innerHTML = "";
 
-                // 3. 判斷是不是兩邊都沒找到
                 if (reviewData.length === 0 && toiletData.length === 0) {
                     container.innerHTML = `<div class='no-data'>系統內目前找不到包含「${keyword}」的結果喔！</div>`;
                     return;
                 }
 
-                // 4. 先印出「已經有評價」的完整卡片
                 if (reviewData.length > 0) {
-                    // 把原本 renderReviewCards 裡面的清空邏輯拿掉，直接呼叫
                     renderReviewCards(reviewData, false); 
                 }
 
-                // 5. 找出「還沒有評價」的廁所
-                // 邏輯：檢查總表裡的每一間廁所，是不是已經出現在評價表裡了
                 const unreviewedToilets = toiletData.filter(toilet => {
                     return !reviewData.some(review => review.toilet_name === toilet.toilet_name);
                 });
 
-                // 6. 印出「還沒有評價」的引導卡片
                 if (unreviewedToilets.length > 0) {
-                    // 同樣直接呼叫，不讓它清空前面的結果
                     renderToiletCards(unreviewedToilets, keyword, false);
                 }
 
