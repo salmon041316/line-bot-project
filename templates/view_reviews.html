@@ -2,9 +2,11 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>查看廁所評價</title>
     <style>
+        input, textarea {font-size: 16px !important; /* 強制字體維持 16px，防止 iOS 自動放大 */}
+        
         body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; }
         .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
         input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
