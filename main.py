@@ -249,56 +249,165 @@ def handle_location(event):
         reply_msg = TextSendMessage(text="抱歉，目前在您的附近找不到公共廁所資訊")
         line_bot_api.reply_message(event.reply_token, reply_msg)
     else:
-        # 準備建立「旋轉木馬模板」的卡片列表
-        carousel_columns = []
-        
-        for t in results:
-            # 防呆：確保文字沒有超過 LINE 的字數限制 (標題限制 40 字，內文限制 60 字)
-            title_text = t['name'][:40]
-            body_text = f"📍距離：約 {t['distance']} 公尺\n🚽地址：{t['address']}"[:60]
-            
-            # 取得廁所的ID (這裡假設妳的字典中有 'id' 這個鍵，如果沒有，請換成對應的變數)
-            # 沒有 id，我們暫時先拿 t['name'] 當作資料庫紀錄用的ID
-            toilet_id = t.get('id', t['name']) 
-            
-            # 製作單一張廁所卡片，組裝卡片的地方
-            column = CarouselColumn(
-                title=title_text,     # 廁所名稱
-                text=body_text,       # 距離與地址等資訊
-                actions=[
-                    # 第一顆按鈕：加入收藏
-                    PostbackAction(
-                        label='❤️ 加入收藏',
-                        display_text=f'我想要收藏 {title_text}',
-                        data=f'action=favorite&toilet_id={title_text}' 
-                    ),
-                    # 第二顆按鈕：查看地圖
-                    URIAction(
-                        label='📍 查看地圖',
-                        uri=f"https://www.google.com/maps/search/?api=1&query={quote(title_text)}"
-                    ),
-                    # 🌟 第三顆按鈕：留下評價
-                    URIAction(
-                        label='⭐ 留下評價',
-                        # 這裡的網址帶上 toilet_id，讓網頁知道現在在評價哪一間
-                        uri=f"https://liff.line.me/2011608763-NWNQFgKI?toilet_id={quote(title_text)}"
-                    )
-                ]
-            )
+        # 準備建立「Flex Message」的美編卡片列表
+        flex_bubbles = []
 
-            carousel_columns.append(column)
+        # 使用 enumerate 加上編號 i (從 1 開始，用來顯示 "附近廁所 1")
+        for i, t in enumerate(results, start=1):
+            toilet_name = t['name']
+            distance = t['distance']
+            address = t['address']
             
-        # 把所有卡片組裝成一個完整的旋轉木馬訊息
-        carousel_template_message = TemplateSendMessage(
-            alt_text='為您找到附近的公廁資訊 (請在手機上查看)',
-            template=CarouselTemplate(columns=carousel_columns)
-        )
+            # 處理網址編碼 (供地圖和 LIFF 使用)
+            encoded_name = quote(toilet_name)
             
-        # 步驟 D：把帶有按鈕的旋轉木馬卡片傳出去
-        line_bot_api.reply_message(
-            event.reply_token,
-            carousel_template_message
+            # 依照美編設計的 JSON 轉換成 Python 字典格式
+            bubble = {
+                "type": "bubble",
+                "size": "mega",
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "backgroundColor": "#F7F5EF",
+                    "paddingAll": "20px",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": f"附近廁所 {i}",
+                            "size": "sm",
+                            "color": "#769382",
+                            "weight": "bold",
+                            "align": "center"
+                        },
+                        {
+                            "type": "text",
+                            "text": f"🚻 {toilet_name}",
+                            "size": "xl",
+                            "weight": "bold",
+                            "color": "#4A4036",
+                            "wrap": True,
+                            "margin": "md",
+                            "align": "center"
+                        },
+                        {
+                            "type": "separator",
+                            "margin": "lg",
+                            "color": "#DDE5DF"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "margin": "lg",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "📍",
+                                    "size": "md",
+                                    "flex": 0
+                                },
+                                {
+                                    "type": "text",
+                                    "text": f"距離約 {distance} 公尺",
+                                    "size": "md",
+                                    "weight": "bold",
+                                    "color": "#555555",
+                                    "margin": "sm",
+                                    "wrap": True
+                                }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "margin": "md",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "🏠",
+                                    "size": "md",
+                                    "flex": 0
+                                },
+                                {
+                                    "type": "text",
+                                    "text": address,
+                                    "size": "md",
+                                    "weight": "bold",
+                                    "color": "#555555",
+                                    "margin": "sm",
+                                    "wrap": True
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "backgroundColor": "#F7F5EF",
+                    "paddingTop": "15px",
+                    "paddingBottom": "15px",
+                    "paddingStart": "15px",
+                    "paddingEnd": "15px",
+                    "spacing": "sm",
+                    "contents": [
+                        {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "spacing": "sm",
+                            "contents": [
+                                {
+                                    "type": "button",
+                                    "style": "primary",
+                                    "color": "#C98F8F",
+                                    "height": "sm",
+                                    "flex": 1,
+                                    "action": {
+                                        "type": "postback",
+                                        "label": "💗 加入收藏",
+                                        "data": f"action=favorite&toilet_id={toilet_name}"
+                                    }
+                                },
+                                {
+                                    "type": "button",
+                                    "style": "primary",
+                                    "color": "#7895A8",
+                                    "height": "sm",
+                                    "flex": 1,
+                                    "action": {
+                                        "type": "uri",
+                                        "label": "🗺️ 查看地圖",
+                                        "uri": f"https://www.google.com/maps/search/?api=1&query={encoded_name}"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "button",
+                            "style": "primary",
+                            "color": "#C7A66A",
+                            "height": "sm",
+                            "action": {
+                                "type": "uri",
+                                "label": "⭐ 留下評價",
+                                "uri": f"https://liff.line.me/2011608763-NWNQFgKI?toilet_id={encoded_name}"
+                            }
+                        }
+                    ]
+                }
+            }
+            
+            # 把設定好的卡片加進列表中
+            flex_bubbles.append(bubble)
+
+        # 將裝滿美編卡片的 flex_bubbles 包裝成輪播 (carousel) 格式發送
+        flex_message = FlexSendMessage(
+            alt_text="為您找到附近的廁所囉！",
+            contents={
+                "type": "carousel",
+                "contents": flex_bubbles
+            }
         )
+        line_bot_api.reply_message(event.reply_token, flex_message)
 
 # ================= (新增) 處理 Postback 按鈕被點擊的事件 =================
 @handler.add(PostbackEvent)
@@ -384,56 +493,172 @@ def handle_text(event):
         )
         line_bot_api.reply_message(event.reply_token, buttons_template)
 
+from urllib.parse import quote
+
 def create_favorites_flex(favorites_list):
-    # 這是卡片最上方的標題區塊
+    """
+    根據美編設計，動態產生「我的收藏」列表卡片 (升級版)
+    """
+    count = len(favorites_list)
+
+    # 1. 建立最上方的「綠色 Header」與「目前收藏數量」區塊
     contents = [
-        {"type": "text", "text": "❤️ 我的收藏名單", "weight": "bold", "size": "xl", "color": "#E55B5B"},
-        {"type": "text", "text": "點選下方按鈕可進行管理或查看路線", "size": "xs", "color": "#999999", "margin": "sm"},
-        {"type": "separator", "margin": "md"}
-    ]
-    
-    # 透過迴圈，根據名單數量動態產生對應數量的項目與按鈕
-    for i, name in enumerate(favorites_list, 1):
-        # 加入廁所名稱
-        contents.append({"type": "text", "text": f"{i}. {name}", "weight": "bold", "size": "sm", "margin": "md"})
-        
-        # 加入一排兩個按鈕 (水平排列)
-        contents.append({
+        {
             "type": "box",
-            "layout": "horizontal",
-            "margin": "sm",
-            "spacing": "sm",
+            "layout": "vertical",
+            "backgroundColor": "#769382",
+            "paddingAll": "20px",
+            "cornerRadius": "xl",
             "contents": [
                 {
-                    "type": "button",
-                    "style": "secondary",
-                    "color": "#E3E7E8",
-                    "height": "sm",
-                    "action": {
-                        "type": "postback",
-                        "label": "💔 取消收藏",
-                        "data": f"action=unfavorite&toilet_id={name}"
-                    }
+                    "type": "text",
+                    "text": "MY FAVORITES",
+                    "color": "#FFFFFF",
+                    "size": "xs",
+                    "weight": "bold"
                 },
                 {
-                    "type": "button",
-                    "style": "primary",
-                    "color": "#769382",
-                    "height": "sm",
-                    "action": {
-                        "type": "uri",
-                        "label": "📍 查看地圖",
-                        "uri": f"https://www.google.com/maps/search/?api=1&query={quote(name)}"
-                    }
+                    "type": "text",
+                    "text": "💗 我的收藏",
+                    "color": "#FFFFFF",
+                    "size": "xl",
+                    "weight": "bold",
+                    "margin": "sm"
+                },
+                {
+                    "type": "text",
+                    "text": "你收藏的廁所都在這裡",
+                    "color": "#E8EFEA",
+                    "size": "sm",
+                    "margin": "sm"
                 }
             ]
-        })
+        },
+        {
+            "type": "box",
+            "layout": "horizontal",
+            "backgroundColor": "#FFFFFF",
+            "paddingAll": "15px",
+            "cornerRadius": "lg",
+            "margin": "md",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "目前收藏",
+                    "color": "#888888",
+                    "size": "sm",
+                    "gravity": "center"
+                },
+                {
+                    "type": "text",
+                    "text": f"{count} 間",
+                    "color": "#769382",
+                    "size": "md",
+                    "weight": "bold",
+                    "align": "end",
+                    "gravity": "center"
+                }
+            ]
+        }
+    ]
+
+    # 2. 透過迴圈，把使用者收藏的每一間廁所都變成一個白色區塊加進去
+    for i, name in enumerate(favorites_list, start=1):
+        encoded_name = quote(name)
         
-    # 最後把所有內容包裝成 Flex Message 規定的格式
+        item_box = {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#FFFFFF",
+            "cornerRadius": "lg",
+            "margin": "md",
+            "paddingAll": "15px",
+            "contents": [
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "contents": [
+                        # 左側的綠色短線條 (點綴用)
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "backgroundColor": "#769382",
+                            "width": "4px",
+                            "cornerRadius": "sm"
+                        },
+                        # 廁所名稱與編號
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "paddingStart": "md",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": f"收藏 {i:02d}", # 會顯示 01, 02 這種格式
+                                    "color": "#769382",
+                                    "size": "xs",
+                                    "weight": "bold"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": name,
+                                    "color": "#333333",
+                                    "size": "md",
+                                    "weight": "bold",
+                                    "wrap": True,
+                                    "margin": "sm"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                # 下方的兩個按鈕 (地圖、移除)
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "margin": "md",
+                    "spacing": "sm",
+                    "contents": [
+                        {
+                            "type": "button",
+                            "style": "primary",
+                            "color": "#769382",
+                            "height": "sm",
+                            "action": {
+                                "type": "uri",
+                                "label": "📍 查看地圖",
+                                "uri": f"https://www.google.com/maps/search/?api=1&query={encoded_name}"
+                            }
+                        },
+                        {
+                            "type": "button",
+                            "style": "secondary",
+                            "height": "sm",
+                            "action": {
+                                "type": "postback",
+                                "label": "移除",
+                                "data": f"action=unfavorite&toilet_id={name}"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+        contents.append(item_box)
+
+    # 3. 將整包 contents 塞進一個 Flex Bubble 裡面並回傳
     flex_dict = {
         "type": "bubble",
-        "body": {"type": "box", "layout": "vertical", "contents": contents}
+        "size": "mega",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#F7F5EF",
+            "paddingAll": "15px",
+            "contents": contents
+        }
     }
+    
     return flex_dict
 
 if __name__ == "__main__":
