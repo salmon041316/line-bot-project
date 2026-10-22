@@ -27,6 +27,9 @@ from linebot.models import (
 from favorite_logic import add_favorite, get_my_favorites, remove_favorite
 from flex_templates import create_toilet_flex_message, create_favorites_flex
 
+from flask import session
+from werkzeug.security import generate_password_hash, check_password_hash
+
 app = Flask(__name__)
 
 # ================= 1. 金鑰密鑰設定 (讀取雲端環境變數) =================
@@ -209,63 +212,122 @@ def api_search_toilets():
     data = search_toilets_from_master(keyword)
     return jsonify(data)
 
-# ---------------------------------------------------------
-# 【管理者後台專用 API】
-# ---------------------------------------------------------
-# 設定後台專用密碼
-ADMIN_PASSWORD = "!QAZ2wsxadmin"
+# ==========================================
+# 🛡️ 營運後台專區 (Session 憑證與密碼加密)
+# ==========================================
+
+# 🌟 設定 Session 必備的加密鑰匙 (絕對不能外流)
+app.secret_key = 'your_graduation_project_secret_key'
+
+def init_admin_account():
+    """【系統啟動時自動執行】建立管理員資料表與預設帳號"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        cursor = conn.cursor()
+        # 1. 建立 admins 資料表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS admins (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL
+            )
+        ''')
+        # 2. 檢查是否已經有 admin 這個帳號
+        cursor.execute("SELECT * FROM admins WHERE username = 'admin'")
+        if not cursor.fetchone():
+            # 3. 如果沒有，就建立預設帳號 (帳號: admin, 密碼: !QAZ2wsxadmin)
+            # 🌟 注意：存進資料庫的是 generate_password_hash 產生的一長串亂碼，不是明碼！
+            hashed_pwd = generate_password_hash('!QAZ2wsxadmin')
+            cursor.execute("INSERT INTO admins (username, password_hash) VALUES (?, ?)", ('admin', hashed_pwd))
+            conn.commit()
+    except Exception as e:
+        print(f"建立管理員帳號失敗: {e}")
+    finally:
+        conn.close()
+
+# 在啟動伺服器前，先呼叫函數把帳號建好
+init_admin_account()
+
+
+@app.route('/admin')
+def admin_page():
+    """回傳管理員後台網頁"""
+    return render_template('admin.html')
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """負責核對帳號密碼，並核發 Session 通行證"""
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        admin = cursor.execute("SELECT * FROM admins WHERE username = ?", (username,)).fetchone()
+    finally:
+        conn.close()
+
+    # 🌟 驗證密碼：使用 check_password_hash 比對前端傳來的密碼與資料庫裡的亂碼
+    if admin and check_password_hash(admin['password_hash'], password):
+        # 密碼正確，發放通行證 (存在伺服器記憶體中)
+        session['admin_logged_in'] = True
+        return jsonify({"status": "success", "message": "登入成功"})
+    else:
+        return jsonify({"status": "error", "message": "帳號或密碼錯誤"}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    """登出：銷毀 Session 通行證"""
+    session.clear()
+    return jsonify({"status": "success"})
+
+
+# ---------------- 以下是需要「憑證」才能存取的 API ----------------
 
 @app.route('/api/admin/reviews', methods=['GET'])
-def api_get_all_reviews():
-    """撈取系統內所有評價資料，供後台列表顯示 (需密碼驗證)"""
-    # 接收網址傳來的密碼
-    pwd = request.args.get('pwd')
-    if pwd != ADMIN_PASSWORD:
-        return jsonify({"status": "error", "message": "密碼錯誤或無權限"}), 401
-
-    data = get_all_reviews_for_admin()
-    return jsonify(data)
+def api_admin_get_reviews():
+    """讀取所有評價 (檢查 Session)"""
+    if not session.get('admin_logged_in'):
+        return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
+    reviews = get_all_reviews_for_admin()
+    return jsonify(reviews)
 
 @app.route('/api/admin/reviews/<int:review_id>', methods=['DELETE'])
-def api_delete_review(review_id):
-    """根據評價 ID 刪除特定評價 (需密碼驗證)"""
-    # 刪除時同樣需要驗證密碼
-    pwd = request.args.get('pwd')
-    if pwd != ADMIN_PASSWORD:
-        return jsonify({"status": "error", "message": "密碼錯誤或無權限"}), 401
-
-    success = delete_review_by_id(review_id)
-    if success:
-        return jsonify({"status": "success", "message": "刪除成功！"})
-    else:
-        return jsonify({"status": "error", "message": "刪除失敗"}), 500
+def api_admin_delete_review(review_id):
+    """刪除特定評價 (檢查 Session)"""
+    if not session.get('admin_logged_in'):
+        return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
+    if delete_review_by_id(review_id):
+        return jsonify({"status": "success", "message": "刪除成功"})
+    return jsonify({"status": "error", "message": "刪除失敗"}), 500
 
 @app.route('/api/admin/coupons', methods=['GET'])
-def api_get_coupons():
-    """取得所有折價券 (需密碼)"""
-    pwd = request.args.get('pwd')
-    if pwd != ADMIN_PASSWORD:
-        return jsonify({"status": "error", "message": "無權限"}), 401
-    return jsonify(get_all_coupons())
+def api_admin_get_coupons():
+    """讀取折價券清單 (檢查 Session)"""
+    if not session.get('admin_logged_in'):
+        return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
+    coupons = get_all_coupons()
+    return jsonify(coupons)
 
 @app.route('/api/admin/coupons', methods=['POST'])
 def api_add_coupon():
+    """發布新折價券 (檢查 Session)"""
+    if not session.get('admin_logged_in'):
+        return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
+        
     data = request.json
     vendor_name = data.get('vendor_name')
     coupon_text = data.get('coupon_text')
     target_keyword = data.get('target_keyword')
-    
-    # 🌟 直接抓取前端表單傳來的數量，不設定預設值
     quantity = data.get('quantity')
     
-    # 嚴格防呆：確保管理員有填寫數量，且數量必須是大於 0 的整數
     if not quantity or not isinstance(quantity, int) or quantity <= 0:
         return jsonify({"status": "error", "message": "發布失敗：請設定正確的發放數量！"}), 400
 
-    # 將參數交給 review_logic 寫入資料庫
     if add_coupon(vendor_name, coupon_text, target_keyword, quantity):
         return jsonify({"status": "success", "message": "折價券發布成功"})
-        
     return jsonify({"status": "error", "message": "發布失敗，請稍後再試"}), 500
 
 # ================= 4. 當手機傳送「位置資訊」進來時 =================

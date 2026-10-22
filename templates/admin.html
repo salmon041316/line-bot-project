@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>找廁所系統 - 營運管理後台</title>
-    <!-- 引入 Bootstrap 美化網頁 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f7f6; }
@@ -25,6 +24,9 @@
             </div>
             <div class="card-body p-4">
                 <div class="mb-3">
+                    <input type="text" id="adminUser" class="form-control" placeholder="請輸入管理帳號" value="admin">
+                </div>
+                <div class="mb-3">
                     <input type="password" id="adminPwd" class="form-control" placeholder="請輸入管理密碼">
                 </div>
                 <button class="btn btn-primary w-100 fw-bold" onclick="verifyLogin()">登入系統</button>
@@ -32,12 +34,12 @@
         </div>
     </div>
 
-    <!-- ================= 系統管理主畫面 (預設隱藏) ================= -->
+    <!-- ================= 系統管理主畫面 ================= -->
     <div class="container" id="adminSection" style="display: none; max-width: 1000px;">
         
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">歡迎登入，系統管理員</h4>
-            <button class="btn btn-outline-secondary" onclick="logout()">登出</button>
+            <button class="btn btn-outline-secondary" onclick="logout()">安全登出</button>
         </div>
 
         <!-- 💰 OMO 折價券發布中心 -->
@@ -47,109 +49,78 @@
             </div>
             <div class="card-body">
                 <div class="row g-3 mb-3">
-                    <div class="col-md-2">
-                        <input type="text" id="vendorName" class="form-control" placeholder="廠商 (例: 全家)">
-                    </div>
-                    <div class="col-md-3">
-                        <input type="text" id="couponText" class="form-control" placeholder="優惠 (例: 拿鐵折10元)">
-                    </div>
-                    <div class="col-md-3">
-                        <input type="text" id="targetKeyword" class="form-control" placeholder="備註 (例: 秋季行銷)">
-                    </div>
-                    <div class="col-md-2">
-                        <input type="number" id="couponQuantity" class="form-control" placeholder="數量 (例: 100)" min="1">
-                    </div>
-                    <div class="col-md-2">
-                        <button class="btn btn-warning w-100 fw-bold" onclick="publishCoupon()">發布</button>
-                    </div>
+                    <div class="col-md-2"><input type="text" id="vendorName" class="form-control" placeholder="廠商 (例: 全家)"></div>
+                    <div class="col-md-3"><input type="text" id="couponText" class="form-control" placeholder="優惠 (例: 拿鐵折10元)"></div>
+                    <div class="col-md-3"><input type="text" id="targetKeyword" class="form-control" placeholder="備註 (例: 秋季行銷)"></div>
+                    <div class="col-md-2"><input type="number" id="couponQuantity" class="form-control" placeholder="數量 (例: 100)" min="1"></div>
+                    <div class="col-md-2"><button class="btn btn-warning w-100 fw-bold" onclick="publishCoupon()">發布</button></div>
                 </div>
                 
                 <table class="table table-sm table-hover align-middle mt-3">
                     <thead class="table-light">
                         <tr>
-                            <th>廠商</th>
-                            <th>優惠內容</th>
-                            <th>活動備註</th>
-                            <th>發行總數</th>
-                            <th>剩餘庫存</th>
+                            <th>廠商</th><th>優惠內容</th><th>活動備註</th><th>發行總數</th><th>剩餘庫存</th>
                         </tr>
                     </thead>
-                    <tbody id="couponTableBody">
-                        <tr><td colspan="5" class="text-center text-muted">載入中...</td></tr>
-                    </tbody>
+                    <tbody id="couponTableBody"><tr><td colspan="5" class="text-center text-muted">載入中...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
         <!-- 📋 評價審查列表 -->
         <div class="card shadow-sm mb-5">
-            <div class="card-header bg-white fw-bold pt-2 pb-2">
-                📋 評價審查列表
-            </div>
+            <div class="card-header bg-white fw-bold pt-2 pb-2">📋 評價審查列表</div>
             <div class="card-body">
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>ID</th>
-                            <th>廁所名稱</th>
-                            <th>星數</th>
-                            <th>評論內容</th>
-                            <th>留言時間</th>
-                            <th>操作</th>
+                            <th>ID</th><th>廁所名稱</th><th>星數</th><th>評論內容</th><th>留言時間</th><th>操作</th>
                         </tr>
                     </thead>
-                    <tbody id="reviewTableBody">
-                        <!-- 資料動態產生 -->
-                    </tbody>
+                    <tbody id="reviewTableBody"></tbody>
                 </table>
             </div>
         </div>
     </div>
 
     <script>
-        // 用來暫存成功登入的密碼
-        let savedPwd = "";
-
-        // 1. 驗證密碼並登入
+        // 1. 驗證密碼並登入 (改打 /api/login)
         async function verifyLogin() {
-            const pwdInput = document.getElementById('adminPwd').value.trim();
-            if (!pwdInput) {
-                alert("請輸入密碼！");
+            const username = document.getElementById('adminUser').value.trim();
+            const password = document.getElementById('adminPwd').value.trim();
+            if (!username || !password) {
+                alert("帳號密碼請勿空白！");
                 return;
             }
 
             try {
-                // 帶著密碼去敲評價 API 測試權限
-                const response = await fetch(`/api/admin/reviews?pwd=${encodeURIComponent(pwdInput)}`);
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
                 
-                if (response.status === 401) {
-                    alert("❌ 密碼錯誤，您無權限訪問！");
-                    return;
+                if (response.ok) {
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('adminSection').style.display = 'block';
+                    refreshAllData();
+                } else {
+                    alert("❌ 帳號或密碼錯誤！");
                 }
-
-                // 密碼正確：把密碼存起來，切換畫面顯示
-                savedPwd = pwdInput;
-                document.getElementById('loginSection').style.display = 'none';
-                document.getElementById('adminSection').style.display = 'block';
-                
-                // 同時撈取評價與折價券資料
-                refreshAllData();
-                
             } catch (err) {
                 alert("伺服器連線失敗，請稍後再試！");
             }
         }
 
-        // 2. 重新整理所有資料 (評價 + 折價券)
+        // 2. 重新整理所有資料 (移除 pwd 參數)
         async function refreshAllData() {
             try {
-                // 抓評價
-                const revRes = await fetch(`/api/admin/reviews?pwd=${encodeURIComponent(savedPwd)}`);
+                const revRes = await fetch('/api/admin/reviews');
+                if (revRes.status === 401) { logout(); return; } // 通行證過期自動登出
                 const revData = await revRes.json();
                 renderReviews(revData);
 
-                // 抓折價券
-                const coupRes = await fetch(`/api/admin/coupons?pwd=${encodeURIComponent(savedPwd)}`);
+                const coupRes = await fetch('/api/admin/coupons');
                 const coupData = await coupRes.json();
                 renderCoupons(coupData);
             } catch (err) {
@@ -161,30 +132,106 @@
         function renderReviews(data) {
             const tbody = document.getElementById('reviewTableBody');
             tbody.innerHTML = ""; 
-
             if (data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">目前系統內沒有任何評價。</td></tr>';
                 return;
             }
-
             data.forEach(review => {
                 let stars = "⭐".repeat(review.stars);
                 let comment = review.comment ? review.comment : '<span class="text-muted">無文字評論</span>';
-                
-                const row = `
+                tbody.innerHTML += `
                     <tr>
                         <td>#${review.id}</td>
                         <td class="fw-bold text-success">${review.toilet_name}</td>
-                        <td>${stars}</td>
-                        <td>${comment}</td>
+                        <td>${stars}</td><td>${comment}</td>
                         <td><small class="text-muted">${review.created_at}</small></td>
-                        <td>
-                            <button class="btn btn-danger btn-sm" onclick="deleteReview(${review.id})">
-                                🗑️ 刪除
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
+                        <td><button class="btn btn-danger btn-sm" onclick="deleteReview(${review.id})">🗑️ 刪除</button></td>
+                    </tr>`;
             });
         }
+
+        // 4. 將折價券資料畫成表格
+        function renderCoupons(data) {
+            const tbody = document.getElementById('couponTableBody');
+            tbody.innerHTML = "";
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">目前沒有發布任何折價券。</td></tr>';
+                return;
+            }
+            data.forEach(c => {
+                const stockBadgeClass = c.remaining_quantity > 0 ? "bg-success" : "bg-danger";
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${c.vendor_name}</td>
+                        <td class="text-primary">${c.coupon_text}</td>
+                        <td><span class="badge bg-secondary">${c.target_keyword}</span></td>
+                        <td>${c.total_quantity}</td>
+                        <td><span class="badge ${stockBadgeClass}">${c.remaining_quantity}</span></td>
+                    </tr>`;
+            });
+        }
+
+        // 5. 發布新折價券 (移除 pwd 參數)
+        async function publishCoupon() {
+            const vendor_name = document.getElementById('vendorName').value.trim();
+            const coupon_text = document.getElementById('couponText').value.trim();
+            const target_keyword = document.getElementById('targetKeyword').value.trim();
+            const quantity = parseInt(document.getElementById('couponQuantity').value.trim());
+
+            if (!vendor_name || !coupon_text || !target_keyword || isNaN(quantity) || quantity <= 0) {
+                alert("請填寫所有欄位，並確保數量為大於 0 的有效數字！");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/coupons', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vendor_name, coupon_text, target_keyword, quantity })
+                });
+                const result = await res.json();
+                if (result.status === "success") {
+                    alert("✅ 折價券發布成功！");
+                    document.getElementById('vendorName').value = "";
+                    document.getElementById('couponText').value = "";
+                    document.getElementById('targetKeyword').value = "";
+                    document.getElementById('couponQuantity').value = "";
+                    refreshAllData();
+                } else {
+                    alert("❌ 發布失敗：" + result.message);
+                }
+            } catch (err) {
+                alert("系統錯誤，無法發布！");
+            }
+        }
+
+        // 6. 刪除評價 (移除 pwd 參數)
+        async function deleteReview(id) {
+            if (!confirm(`確定要刪除 ID 為 #${id} 的這筆評價嗎？此操作無法復原！`)) return; 
+            try {
+                const response = await fetch(`/api/admin/reviews/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.status === "success") {
+                    alert("✅ 評價已成功刪除！");
+                    refreshAllData(); 
+                } else {
+                    alert("❌ 刪除失敗：" + result.message);
+                }
+            } catch (err) {
+                alert("系統錯誤，無法刪除！");
+            }
+        }
+
+        // 7. 安全登出 (呼叫 API 銷毀 Session)
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+            } catch (err) { console.error(err); }
+            
+            document.getElementById('adminPwd').value = "";
+            document.getElementById('adminSection').style.display = 'none';
+            document.getElementById('loginSection').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
