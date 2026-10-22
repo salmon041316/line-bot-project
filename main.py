@@ -277,6 +277,42 @@ def api_logout():
     session.clear()
     return jsonify({"status": "success"})
 
+# ---新增帳號密碼---
+
+@app.route('/api/admin/accounts', methods=['POST'])
+def api_create_admin_account():
+    """讓已登入的管理員，能在後台建立新的廠商帳號"""
+    # 1. 檢查是否已經登入 (防護機制)
+    if not session.get('admin_logged_in'):
+        return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
+        
+    data = request.json
+    new_username = data.get('username')
+    new_password = data.get('password')
+    
+    if not new_username or not new_password:
+        return jsonify({"status": "error", "message": "帳號與密碼不能為空！"}), 400
+        
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        cursor = conn.cursor()
+        
+        # 2. 檢查帳號是否已經被別人註冊走了
+        cursor.execute("SELECT id FROM admins WHERE username = ?", (new_username,))
+        if cursor.fetchone():
+            return jsonify({"status": "error", "message": "此帳號已經存在，請換一個名稱！"}), 400
+            
+        # 3. 密碼加密並寫入資料庫
+        hashed_pwd = generate_password_hash(new_password)
+        cursor.execute("INSERT INTO admins (username, password_hash) VALUES (?, ?)", (new_username, hashed_pwd))
+        conn.commit()
+        
+        return jsonify({"status": "success", "message": f"成功建立新廠商帳號：{new_username}"})
+    except Exception as e:
+        print(f"建立帳號失敗: {e}")
+        return jsonify({"status": "error", "message": "伺服器發生錯誤"}), 500
+    finally:
+        conn.close()
 
 # ---------------- 以下是需要「憑證」才能存取的 API ----------------
 
