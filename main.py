@@ -9,7 +9,7 @@ from review_logic import (
     save_review_to_db, get_reviews_by_toilet, get_latest_reviews, 
     search_toilets_from_master, check_user_can_review, get_all_reviews_for_admin, 
     delete_review_by_id, add_coupon, get_all_coupons, get_user_review_count, 
-    get_available_coupon
+    assign_coupon_to_user, get_user_wallet
 )
 from geopy.distance import great_circle
 
@@ -124,7 +124,7 @@ def view_reviews_page():
     return render_template('view_reviews.html')
 
 # ---------------------------------------------------------
-# 【評價與搜尋系統 API (給前端網頁呼叫用)】
+# 【評價與搜尋系統 API】
 # ---------------------------------------------------------
 
 @app.route('/api/review', methods=['POST'])
@@ -146,8 +146,8 @@ def submit_review():
         
         # 4. 判斷是否達標 (5 的倍數)
         if review_count % 5 == 0:
-            # 滿 5 次，發放折價券 (直接抓取庫存)
-            coupon = get_available_coupon()
+            # 滿 5 次，發放折價券並記錄到錢包 (傳入 user_id)
+            coupon = assign_coupon_to_user(user_id)
             if coupon:
                 return jsonify({
                     "status": "success", 
@@ -172,6 +172,19 @@ def submit_review():
             })
 
     return jsonify({"status": "error", "message": "評價儲存失敗"}), 500
+
+# 新增錢包的網頁路由與 API
+
+@app.route('/wallet')
+def render_wallet_page():
+    """顯示「我的折價券錢包」網頁"""
+    return render_template('wallet.html')
+
+@app.route('/api/wallet/<user_id>', methods=['GET'])
+def api_get_wallet(user_id):
+    """前端 LIFF 透過此 API 獲取使用者的折價券清單"""
+    coupons = get_user_wallet(user_id)
+    return jsonify(coupons)
 
 # ---------------------------------------------------------
 # 【前端讀取與搜尋評價 API】

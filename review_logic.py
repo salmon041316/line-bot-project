@@ -1,4 +1,6 @@
 import sqlite3
+import string
+import random
 
 def save_review_to_db(user_id, toilet_name, stars, comment):
     # 接收從主程式傳來的資料，負責把它寫進 SQLite 資料庫裡的 reviews 表格
@@ -270,28 +272,88 @@ def get_user_review_count(user_id):
     finally:
         conn.close()
 
-def get_available_coupon():
-    """【必中機制】只要還有剩餘數量的折價券，就隨機發送一張並扣除庫存"""
+def setup_user_coupons_table():
+    """建立使用者錢包資料表"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_coupons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                coupon_id INTEGER NOT NULL,
+                serial_code TEXT UNIQUE NOT NULL,
+                is_used BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+    except Exception as e:
+        print(f"建立 user_coupons 表格失敗: {e}")
+    finally:
+        conn.close()
+
+def assign_coupon_to_user(user_id):
+    """【必中機制與錢包紀錄】發放折價券並綁定使用者序號"""
+    setup_user_coupons_table()
     try:
         conn = sqlite3.connect('bot_data.db')
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # 修正：只撈出 remaining_quantity > 0 (還有庫存) 的折價券
+        # 1. 撈出還有庫存的折價券
         cursor.execute('SELECT * FROM coupons WHERE remaining_quantity > 0 ORDER BY RANDOM() LIMIT 1')
-        row = cursor.fetchone()
+        coupon = cursor.fetchone()
         
-        if row:
-            # 抽中後，將該折價券的剩餘數量減 1 (扣除庫存)
-            cursor.execute('UPDATE coupons SET remaining_quantity = remaining_quantity - 1 WHERE id = ?', (row['id'],))
-            conn.commit()
-            return dict(row)
+        if coupon:
+            # 2. 產生 8 碼不重複的大寫英數序號 (格式: XXXX-XXXX)
+            code_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            serial_code = f"{code_str[:4]}-{code_str[4:]}"
             
-        # 若全數發放完畢，則回傳 None
+            # 3. 扣除庫存
+            cursor.execute('UPDATE coupons SET remaining_quantity = remaining_quantity - 1 WHERE id = ?', (coupon['id'],))
+            
+            # 4. 寫入該使用者的個人錢包
+            cursor.execute('''
+                INSERT INTO user_coupons (user_id, coupon_id, serial_code) 
+                VALUES (?, ?, ?)
+            ''', (user_id, coupon['id'], serial_code))
+            
+            conn.commit()
+            
+            # 將序號打包進去回傳給前端
+            result = dict(coupon)
+            result['serial_code'] = serial_code
+            return result
+            
         return None
-        
     except Exception as e:
-        print(f"抽取折價券失敗: {e}")
+        print(f"分發折價券失敗: {e}")
         return None
+    finally:
+        conn.close()
+
+def get_user_wallet(user_id):
+    """撈取特定使用者的所有折價券清單"""
+    setup_user_coupons_table()
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # 使用 JOIN 關聯查詢，把 user_coupons 和 coupons 兩張表的資料拼起來
+        cursor.execute('''
+            SELECT uc.serial_code, uc.is_used, DATETIME(uc.created_at, '+8 hours') AS get_time,
+                   c.vendor_name, c.coupon_text, c.target_keyword
+            FROM user_coupons uc
+            JOIN coupons c ON uc.coupon_id = c.id
+            WHERE uc.user_id = ?
+            ORDER BY uc.created_at DESC
+        ''', (user_id,))
+        
+        return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"撈取錢包失敗: {e}")
+        return []
     finally:
         conn.close()

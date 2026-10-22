@@ -121,9 +121,10 @@
                 }
 
                 // 狀態 2：滿 5 次且成功獲得折價券 (尚有庫存)
+                // 狀態 2：滿 5 次且成功獲得折價券 (尚有庫存)
                 if (result.status === "success" && result.reward === true) {
-                    const serialCode = Math.random().toString(36).substring(2, 6).toUpperCase() + "-" + 
-                                       Math.random().toString(36).substring(2, 6).toUpperCase();
+                    // 🌟 直接使用後端真實存入資料庫的專屬序號
+                    const serialCode = result.coupon.serial_code;
                     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${serialCode}`;
 
                     Swal.fire({
