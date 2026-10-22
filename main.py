@@ -135,25 +135,40 @@ def submit_review():
     stars = data.get('stars')
     comment = data.get('comment')
     
-    # 🌟 1. 防洗版檢查：同一個帳號是否已經評價過同一間？
+    # 1. 防洗版檢查
     if not check_user_can_review(user_id, toilet_name):
         return jsonify({"status": "error", "message": "您已經評價過這間廁所囉！把機會留給其他間吧！"}), 400
 
     # 2. 儲存評價
     if save_review_to_db(user_id, toilet_name, stars, comment):
-        # 🌟 3. 百分百中獎機制：直接去庫存抓一張，只要有庫存就給
-        coupon = get_available_coupon()
+        # 3. 取得該使用者的總評價數
+        review_count = get_user_review_count(user_id)
         
-        if coupon:
-            return jsonify({
-                "status": "success", 
-                "message": "感謝評價！您獲得了一張折價券！",
-                "coupon": coupon
-            })
+        # 4. 判斷是否達標 (5 的倍數)
+        if review_count % 5 == 0:
+            # 滿 5 次，發放折價券 (直接抓取庫存)
+            coupon = get_available_coupon()
+            if coupon:
+                return jsonify({
+                    "status": "success", 
+                    "reward": True,
+                    "review_count": review_count,
+                    "coupon": coupon
+                })
+            else:
+                return jsonify({
+                    "status": "success", 
+                    "reward": False,
+                    "review_count": review_count,
+                    "message": "感謝評價！您已滿 5 則評價，但目前折價券已被索取完畢，敬請期待下一波活動！"
+                })
         else:
+            # 未滿 5 次，一般累積中
             return jsonify({
-                "status": "success", 
-                "message": "感謝評價！目前折價券已被索取完畢，敬請期待下一波活動！"
+                "status": "success",
+                "reward": False,
+                "review_count": review_count,
+                "message": "評價送出成功！"
             })
 
     return jsonify({"status": "error", "message": "評價儲存失敗"}), 500
