@@ -123,12 +123,6 @@ def view_reviews_page():
     """顯示「查看廁所評價與雙軌搜尋」網頁"""
     return render_template('view_reviews.html')
 
-@app.route('/admin')
-def admin_page():
-    """顯示「營運管理後台」網頁"""
-    return render_template('admin.html') 
-
-
 # ---------------------------------------------------------
 # 【評價與搜尋系統 API (給前端網頁呼叫用)】
 # ---------------------------------------------------------
