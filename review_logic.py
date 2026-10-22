@@ -76,7 +76,7 @@ def get_latest_reviews(limit=10):
         conn.row_factory = sqlite3.Row 
         cursor = conn.cursor()
         
-        # 🌟 關鍵修改：使用 DATETIME(..., '+8 hours') 轉換為台灣時間
+        # 關鍵修改：使用 DATETIME(..., '+8 hours') 轉換為台灣時間
         cursor.execute('''
             SELECT toilet_name, stars, comment, DATETIME(created_at, '+8 hours') AS created_at 
             FROM reviews 
@@ -111,7 +111,6 @@ def search_toilets_from_master(keyword):
         conn.row_factory = sqlite3.Row 
         cursor = conn.cursor()
         
-        # 請將 'toilet_info' 和 'name' 替換成妳們資料庫實際的名稱
         cursor.execute('''
             SELECT name AS toilet_name 
             FROM toilets 
@@ -133,6 +132,23 @@ def search_toilets_from_master(keyword):
     finally:
         conn.close()
 
+def check_user_can_review(user_id, toilet_name):
+    """【防洗評論】檢查該使用者是否已經評價過這間廁所"""
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        cursor = conn.cursor()
+        # 去資料庫找找看，這個 user_id 有沒有在同一間廁所留過言
+        cursor.execute('SELECT id FROM reviews WHERE user_id = ? AND toilet_name = ?', (user_id, toilet_name))
+        result = cursor.fetchone()
+        
+        # 如果 result 有東西，代表留過言了，回傳 False (不能再評價)
+        return False if result else True
+    except Exception as e:
+        print(f"檢查評價紀錄失敗: {e}")
+        return False
+    finally:
+        conn.close()
+
 # --- 管理者後台專用功能 ---
 
 def get_all_reviews_for_admin():
@@ -142,7 +158,7 @@ def get_all_reviews_for_admin():
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # 🌟 關鍵修改：後台也一併轉換為台灣時間
+        # 關鍵修改：後台也一併轉換為台灣時間
         cursor.execute('''
             SELECT id, toilet_name, stars, comment, DATETIME(created_at, '+8 hours') AS created_at 
             FROM reviews 
@@ -176,15 +192,40 @@ def delete_review_by_id(review_id):
     finally:
         conn.close()
 
-def add_coupon(vendor_name, coupon_text, target_keyword):
-    """新增一張折價券到資料庫"""
+# ----------------- 折價券與抽獎邏輯 -----------------
+
+def setup_coupons_table():
+    """確保 coupons 表格有數量欄位 (如果沒有會自動建立)"""
     try:
         conn = sqlite3.connect('bot_data.db')
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO coupons (vendor_name, coupon_text, target_keyword) 
-            VALUES (?, ?, ?)
-        ''', (vendor_name, coupon_text, target_keyword))
+            CREATE TABLE IF NOT EXISTS coupons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vendor_name TEXT NOT NULL,
+                coupon_text TEXT NOT NULL,
+                target_keyword TEXT NOT NULL,
+                total_quantity INTEGER DEFAULT 0,
+                remaining_quantity INTEGER DEFAULT 0
+            )
+        ''')
+        conn.commit()
+    except Exception as e:
+        print(f"建立 coupons 表格失敗: {e}")
+    finally:
+        conn.close()
+        
+def add_coupon(vendor_name, coupon_text, target_keyword, quantity):
+    """新增一張折價券到資料庫，並設定發行數量"""
+    setup_coupons_table()
+    try:
+        conn = sqlite3.connect('bot_data.db')
+        cursor = conn.cursor()
+        # 修正：將 quantity 同時存入總數量與剩餘數量
+        cursor.execute('''
+            INSERT INTO coupons (vendor_name, coupon_text, target_keyword, total_quantity, remaining_quantity) 
+            VALUES (?, ?, ?, ?, ?)
+        ''', (vendor_name, coupon_text, target_keyword, quantity, quantity))
         conn.commit()
         return True
     except Exception as e:
@@ -229,19 +270,24 @@ def get_user_review_count(user_id):
     finally:
         conn.close()
 
-def get_random_coupon():
-    """隨機抽出一張系統內發布的折價券當作獎勵"""
+def get_available_coupon():
+    """【必中機制】只要還有剩餘數量的折價券，就隨機發送一張並扣除庫存"""
     try:
         conn = sqlite3.connect('bot_data.db')
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # 利用 ORDER BY RANDOM() 隨機洗牌，並 LIMIT 1 只抽第一張
-        cursor.execute('SELECT * FROM coupons ORDER BY RANDOM() LIMIT 1')
+        # 修正：只撈出 remaining_quantity > 0 (還有庫存) 的折價券
+        cursor.execute('SELECT * FROM coupons WHERE remaining_quantity > 0 ORDER BY RANDOM() LIMIT 1')
         row = cursor.fetchone()
         
         if row:
+            # 抽中後，將該折價券的剩餘數量減 1 (扣除庫存)
+            cursor.execute('UPDATE coupons SET remaining_quantity = remaining_quantity - 1 WHERE id = ?', (row['id'],))
+            conn.commit()
             return dict(row)
+            
+        # 若全數發放完畢，則回傳 None
         return None
         
     except Exception as e:

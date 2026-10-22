@@ -33,7 +33,7 @@
     </div>
 
     <!-- ================= 系統管理主畫面 (預設隱藏) ================= -->
-    <div class="container" id="adminSection" style="display: none; max-width: 900px;">
+    <div class="container" id="adminSection" style="display: none; max-width: 1000px;">
         
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">歡迎登入，系統管理員</h4>
@@ -47,14 +47,17 @@
             </div>
             <div class="card-body">
                 <div class="row g-3 mb-3">
-                    <div class="col-md-3">
-                        <input type="text" id="vendorName" class="form-control" placeholder="廠商名稱 (例: 全家)">
-                    </div>
-                    <div class="col-md-4">
-                        <input type="text" id="couponText" class="form-control" placeholder="優惠內容 (例: 中杯拿鐵折10元)">
+                    <div class="col-md-2">
+                        <input type="text" id="vendorName" class="form-control" placeholder="廠商 (例: 全家)">
                     </div>
                     <div class="col-md-3">
-                        <input type="text" id="targetKeyword" class="form-control" placeholder="活動備註 (例: 秋季行銷)">
+                        <input type="text" id="couponText" class="form-control" placeholder="優惠 (例: 拿鐵折10元)">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" id="targetKeyword" class="form-control" placeholder="備註 (例: 秋季行銷)">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" id="couponQuantity" class="form-control" placeholder="數量 (例: 100)" min="1">
                     </div>
                     <div class="col-md-2">
                         <button class="btn btn-warning w-100 fw-bold" onclick="publishCoupon()">發布</button>
@@ -67,10 +70,12 @@
                             <th>廠商</th>
                             <th>優惠內容</th>
                             <th>活動備註</th>
+                            <th>發行總數</th>
+                            <th>剩餘庫存</th>
                         </tr>
                     </thead>
                     <tbody id="couponTableBody">
-                        <tr><td colspan="3" class="text-center text-muted">載入中...</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted">載入中...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -183,95 +188,3 @@
                 tbody.innerHTML += row;
             });
         }
-
-        // 4. 將折價券資料畫成表格
-        function renderCoupons(data) {
-            const tbody = document.getElementById('couponTableBody');
-            tbody.innerHTML = "";
-
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">目前沒有發布任何折價券。</td></tr>';
-                return;
-            }
-
-            data.forEach(c => {
-                const row = `
-                    <tr>
-                        <td class="fw-bold">${c.vendor_name}</td>
-                        <td class="text-primary">${c.coupon_text}</td>
-                        <td><span class="badge bg-secondary">${c.target_keyword}</span></td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
-            });
-        }
-
-        // 5. 發布新折價券
-        async function publishCoupon() {
-            const vendor_name = document.getElementById('vendorName').value.trim();
-            const coupon_text = document.getElementById('couponText').value.trim();
-            const target_keyword = document.getElementById('targetKeyword').value.trim();
-
-            if (!vendor_name || !coupon_text || !target_keyword) {
-                alert("請填寫所有折價券欄位！");
-                return;
-            }
-
-            try {
-                const res = await fetch(`/api/admin/coupons?pwd=${encodeURIComponent(savedPwd)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ vendor_name, coupon_text, target_keyword })
-                });
-                
-                const result = await res.json();
-                if (result.status === "success") {
-                    alert("✅ 折價券發布成功！");
-                    // 清空輸入框
-                    document.getElementById('vendorName').value = "";
-                    document.getElementById('couponText').value = "";
-                    document.getElementById('targetKeyword').value = "";
-                    // 重新撈取資料
-                    refreshAllData();
-                } else {
-                    alert("❌ 發布失敗：" + result.message);
-                }
-            } catch (err) {
-                alert("系統錯誤，無法發布！");
-            }
-        }
-
-        // 6. 刪除評價
-        async function deleteReview(id) {
-            if (!confirm(`確定要刪除 ID 為 #${id} 的這筆評價嗎？此操作無法復原！`)) {
-                return; 
-            }
-
-            try {
-                const response = await fetch(`/api/admin/reviews/${id}?pwd=${encodeURIComponent(savedPwd)}`, {
-                    method: 'DELETE'
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === "success") {
-                    alert("✅ 評價已成功刪除！");
-                    refreshAllData(); 
-                } else {
-                    alert("❌ 刪除失敗：" + result.message);
-                }
-            } catch (err) {
-                alert("系統錯誤，無法刪除！");
-            }
-        }
-
-        // 7. 登出功能
-        function logout() {
-            savedPwd = "";
-            document.getElementById('adminPwd').value = "";
-            document.getElementById('adminSection').style.display = 'none';
-            document.getElementById('loginSection').style.display = 'block';
-        }
-    </script>
-</body>
-</html>

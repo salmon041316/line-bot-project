@@ -5,8 +5,12 @@ import random
 from urllib.parse import parse_qsl, quote  # 新增：用來解析 Postback 按鈕藏的隱藏資料
 
 from flask import Flask, request, abort, render_template, jsonify
-from review_logic import save_review_to_db, get_reviews_by_toilet, get_latest_reviews, search_toilets_from_master, \
-    get_all_reviews_for_admin, delete_review_by_id, add_coupon, get_all_coupons, get_user_review_count, get_random_coupon
+from review_logic import (
+    save_review_to_db, get_reviews_by_toilet, get_latest_reviews, 
+    search_toilets_from_master, check_user_can_review, get_all_reviews_for_admin, 
+    delete_review_by_id, add_coupon, get_all_coupons, get_user_review_count, 
+    get_available_coupon
+)
 from geopy.distance import great_circle
 
 from linebot import LineBotApi, WebhookHandler
@@ -127,57 +131,35 @@ def admin_page():
 # ---------------------------------------------------------
 
 @app.route('/api/review', methods=['POST'])
-def submit_review_api():
-    """接收前端傳來的評價資料並寫入資料庫，包含 UGC 評價獎勵機制"""
-    data = request.get_json()
+def submit_review():
+    data = request.json
     user_id = data.get('user_id')
     toilet_name = data.get('toilet_name')
     stars = data.get('stars')
-    comment = data.get('comment', '') 
+    comment = data.get('comment')
+    
+    # 🌟 1. 防洗版檢查：同一個帳號是否已經評價過同一間？
+    if not check_user_can_review(user_id, toilet_name):
+        return jsonify({"status": "error", "message": "您已經評價過這間廁所囉！把機會留給其他間吧！"}), 400
 
-    # 1. 先將評價存入資料庫
-    success = save_review_to_db(user_id, toilet_name, stars, comment)
-
-    if success:
-        review_count = get_user_review_count(user_id)
+    # 2. 儲存評價
+    if save_review_to_db(user_id, toilet_name, stars, comment):
+        # 🌟 3. 百分百中獎機制：直接去庫存抓一張，只要有庫存就給
+        coupon = get_available_coupon()
         
-        # 3. 判斷是否達到抽獎門檻 (每滿 5 則獲得一次抽獎機會)
-        if review_count > 0 and review_count % 5 == 0:
-            
-            # 加入機率機制：例如設定 50% 的中獎率
-            is_winner = random.random() < 0.5
-            
-            if is_winner:
-                coupon = get_random_coupon()
-                if coupon:
-                    return jsonify({
-                        "status": "success", 
-                        "message": "評價已成功儲存！",
-                        "reward": True,
-                        "is_draw_time": True,  
-                        "review_count": review_count,
-                        "coupon_data": coupon
-                    }), 200
-
-            # 沒中獎（或是資料庫剛好沒折價券）
+        if coupon:
             return jsonify({
                 "status": "success", 
-                "message": "評價已成功儲存！",
-                "reward": False,
-                "is_draw_time": True,  
-                "review_count": review_count
-            }), 200
+                "message": "感謝評價！您獲得了一張折價券！",
+                "coupon": coupon
+            })
+        else:
+            return jsonify({
+                "status": "success", 
+                "message": "感謝評價！目前折價券已被索取完畢，敬請期待下一波活動！"
+            })
 
-        # 如果還沒滿 5 則 (不具備抽獎資格)
-        return jsonify({
-            "status": "success", 
-            "message": "評價已成功儲存！",
-            "reward": False,
-            "is_draw_time": False, 
-            "review_count": review_count
-        }), 200
-    else:
-        return jsonify({"status": "error", "message": "儲存失敗"}), 500
+    return jsonify({"status": "error", "message": "評價儲存失敗"}), 500
 
 # ---------------------------------------------------------
 # 【前端讀取與搜尋評價 API】
@@ -268,18 +250,23 @@ def api_get_coupons():
 
 @app.route('/api/admin/coupons', methods=['POST'])
 def api_add_coupon():
-    """發布新折價券 (需密碼)"""
-    pwd = request.args.get('pwd')
-    if pwd != ADMIN_PASSWORD:
-        return jsonify({"status": "error", "message": "無權限"}), 401
-        
-    data = request.get_json()
-    success = add_coupon(data.get('vendor_name'), data.get('coupon_text'), data.get('target_keyword'))
+    data = request.json
+    vendor_name = data.get('vendor_name')
+    coupon_text = data.get('coupon_text')
+    target_keyword = data.get('target_keyword')
     
-    if success:
-        return jsonify({"status": "success", "message": "發布成功！"})
-    else:
-        return jsonify({"status": "error", "message": "發布失敗"}), 500
+    # 🌟 直接抓取前端表單傳來的數量，不設定預設值
+    quantity = data.get('quantity')
+    
+    # 嚴格防呆：確保管理員有填寫數量，且數量必須是大於 0 的整數
+    if not quantity or not isinstance(quantity, int) or quantity <= 0:
+        return jsonify({"status": "error", "message": "發布失敗：請設定正確的發放數量！"}), 400
+
+    # 將參數交給 review_logic 寫入資料庫
+    if add_coupon(vendor_name, coupon_text, target_keyword, quantity):
+        return jsonify({"status": "success", "message": "折價券發布成功"})
+        
+    return jsonify({"status": "error", "message": "發布失敗，請稍後再試"}), 500
 
 # ================= 4. 當手機傳送「位置資訊」進來時 =================
 @handler.add(MessageEvent, message=LocationMessage)
