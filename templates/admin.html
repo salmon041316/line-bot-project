@@ -38,12 +38,12 @@
     <div class="container" id="adminSection" style="display: none; max-width: 1000px;">
         
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="mb-0">歡迎登入，系統管理員</h4>
+            <h4 class="mb-0" id="welcomeText">歡迎登入，系統管理員</h4>
             <button class="btn btn-outline-secondary" onclick="logout()">登出</button>
         </div>
 
-        <!-- 👤 廠商帳號管理中心 -->
-        <div class="card shadow-sm mb-4 border-info">
+        <!-- 👤 廠商帳號管理中心 (只有系統管理員看得到) -->
+        <div class="card shadow-sm mb-4 border-info" id="accountCard">
             <div class="card-header bg-info text-white fw-bold pt-2 pb-2">
                 👤 建立新廠商登入帳號
             </div>
@@ -79,16 +79,16 @@
                 <table class="table table-sm table-hover align-middle mt-3">
                     <thead class="table-light">
                         <tr>
-                            <th>廠商</th><th>優惠內容</th><th>活動備註</th><th>發行總數</th><th>剩餘庫存</th>
+                            <th>廠商</th><th>優惠內容</th><th>活動備註</th><th>發行總數</th><th>剩餘庫存</th><th>發布帳號</th>
                         </tr>
                     </thead>
-                    <tbody id="couponTableBody"><tr><td colspan="5" class="text-center text-muted">載入中...</td></tr></tbody>
+                    <tbody id="couponTableBody"><tr><td colspan="6" class="text-center text-muted">載入中...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- 📋 評價審查列表 -->
-        <div class="card shadow-sm mb-5">
+        <!-- 📋 評價審查列表 (只有系統管理員看得到) -->
+        <div class="card shadow-sm mb-5" id="reviewCard">
             <div class="card-header bg-white fw-bold pt-2 pb-2">📋 評價審查列表</div>
             <div class="card-body">
                 <table class="table table-hover align-middle">
@@ -104,6 +104,9 @@
     </div>
 
     <script>
+        // 記錄目前登入的是不是系統管理員 (admin)
+        let isSuper = false;
+
         // 1. 驗證密碼並登入 (改打 /api/login)
         async function verifyLogin() {
             const username = document.getElementById('adminUser').value.trim();
@@ -121,6 +124,18 @@
                 });
                 
                 if (response.ok) {
+                    const result = await response.json();
+                    // 依登入身分切換畫面：系統管理員可建立廠商帳號、管理評價，廠商只能管理自己的折價券
+                    isSuper = result.is_super;
+                    if (isSuper) {
+                        document.getElementById('welcomeText').innerText = "歡迎登入，系統管理員";
+                        document.getElementById('accountCard').style.display = 'block';
+                        document.getElementById('reviewCard').style.display = 'block';
+                    } else {
+                        document.getElementById('welcomeText').innerText = `歡迎登入，${result.username}`;
+                        document.getElementById('accountCard').style.display = 'none';
+                        document.getElementById('reviewCard').style.display = 'none';
+                    }
                     document.getElementById('loginSection').style.display = 'none';
                     document.getElementById('adminSection').style.display = 'block';
                     refreshAllData();
@@ -135,12 +150,16 @@
         // 2. 重新整理所有資料 (移除 pwd 參數)
         async function refreshAllData() {
             try {
-                const revRes = await fetch('/api/admin/reviews');
-                if (revRes.status === 401) { logout(); return; } // 通行證過期自動登出
-                const revData = await revRes.json();
-                renderReviews(revData);
+                // 評價資料只有系統管理員才讀取
+                if (isSuper) {
+                    const revRes = await fetch('/api/admin/reviews');
+                    if (revRes.status === 401) { logout(); return; } // 通行證過期自動登出
+                    const revData = await revRes.json();
+                    renderReviews(revData);
+                }
 
                 const coupRes = await fetch('/api/admin/coupons');
+                if (coupRes.status === 401) { logout(); return; } // 通行證過期自動登出
                 const coupData = await coupRes.json();
                 renderCoupons(coupData);
             } catch (err) {
@@ -175,7 +194,7 @@
             const tbody = document.getElementById('couponTableBody');
             tbody.innerHTML = "";
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">目前沒有發布任何折價券。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">目前沒有發布任何折價券。</td></tr>';
                 return;
             }
             data.forEach(c => {
@@ -187,6 +206,7 @@
                         <td><span class="badge bg-secondary">${c.target_keyword}</span></td>
                         <td>${c.total_quantity}</td>
                         <td><span class="badge ${stockBadgeClass}">${c.remaining_quantity}</span></td>
+                        <td><small class="text-muted">${c.admin_username ? c.admin_username : '未記錄'}</small></td>
                     </tr>`;
             });
         }

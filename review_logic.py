@@ -197,7 +197,7 @@ def delete_review_by_id(review_id):
 # ----------------- 折價券與抽獎邏輯 -----------------
 
 def setup_coupons_table():
-    """確保 coupons 表格有數量欄位 (如果沒有會自動建立)"""
+    """確保 coupons 表格有數量欄位與發布帳號欄位 (如果沒有會自動建立)"""
     try:
         conn = sqlite3.connect('bot_data.db')
         cursor = conn.cursor()
@@ -208,26 +208,34 @@ def setup_coupons_table():
                 coupon_text TEXT NOT NULL,
                 target_keyword TEXT NOT NULL,
                 total_quantity INTEGER DEFAULT 0,
-                remaining_quantity INTEGER DEFAULT 0
+                remaining_quantity INTEGER DEFAULT 0,
+                admin_id INTEGER
             )
         ''')
+
+        # 舊版 coupons 表格沒有 admin_id 欄位，就自動補上 (記錄是哪個廠商帳號發布的)
+        cursor.execute('PRAGMA table_info(coupons)')
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'admin_id' not in columns:
+            cursor.execute('ALTER TABLE coupons ADD COLUMN admin_id INTEGER')
+
         conn.commit()
     except Exception as e:
         print(f"建立 coupons 表格失敗: {e}")
     finally:
         conn.close()
         
-def add_coupon(vendor_name, coupon_text, target_keyword, quantity):
-    """新增一張折價券到資料庫，並設定發行數量"""
+def add_coupon(vendor_name, coupon_text, target_keyword, quantity, admin_id):
+    """新增一張折價券到資料庫，設定發行數量，並記錄發布的廠商帳號"""
     setup_coupons_table()
     try:
         conn = sqlite3.connect('bot_data.db')
         cursor = conn.cursor()
         # 修正：將 quantity 同時存入總數量與剩餘數量
         cursor.execute('''
-            INSERT INTO coupons (vendor_name, coupon_text, target_keyword, total_quantity, remaining_quantity) 
-            VALUES (?, ?, ?, ?, ?)
-        ''', (vendor_name, coupon_text, target_keyword, quantity, quantity))
+            INSERT INTO coupons (vendor_name, coupon_text, target_keyword, total_quantity, remaining_quantity, admin_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (vendor_name, coupon_text, target_keyword, quantity, quantity, admin_id))
         conn.commit()
         return True
     except Exception as e:
@@ -236,13 +244,30 @@ def add_coupon(vendor_name, coupon_text, target_keyword, quantity):
     finally:
         conn.close()
 
-def get_all_coupons():
-    """撈出所有已發布的折價券"""
+def get_all_coupons(admin_id=None):
+    """撈出已發布的折價券 (有傳 admin_id 就只撈該廠商帳號發布的)"""
+    setup_coupons_table()
     try:
         conn = sqlite3.connect('bot_data.db')
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM coupons ORDER BY id DESC')
+
+        # 使用 LEFT JOIN 關聯 admins 表，一併帶出發布帳號名稱
+        if admin_id is None:
+            cursor.execute('''
+                SELECT c.*, a.username AS admin_username
+                FROM coupons c
+                LEFT JOIN admins a ON c.admin_id = a.id
+                ORDER BY c.id DESC
+            ''')
+        else:
+            cursor.execute('''
+                SELECT c.*, a.username AS admin_username
+                FROM coupons c
+                LEFT JOIN admins a ON c.admin_id = a.id
+                WHERE c.admin_id = ?
+                ORDER BY c.id DESC
+            ''', (admin_id,))
         return [dict(row) for row in cursor.fetchall()]
     except Exception as e:
         print(f"撈取折價券失敗: {e}")

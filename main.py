@@ -295,7 +295,15 @@ def api_login():
     if admin and check_password_hash(admin['password_hash'], password):
         # 密碼正確，發放通行證 (存在伺服器記憶體中)
         session['admin_logged_in'] = True
-        return jsonify({"status": "success", "message": "登入成功"})
+        # 記住是哪個帳號登入，之後發布折價券時才知道是哪家廠商
+        session['admin_id'] = admin['id']
+        session['admin_username'] = admin['username']
+        return jsonify({
+            "status": "success",
+            "message": "登入成功",
+            "username": admin['username'],
+            "is_super": admin['username'] == 'admin'  # 預設的 admin 帳號為系統管理員
+        })
     else:
         return jsonify({"status": "error", "message": "帳號或密碼錯誤"}), 401
 
@@ -313,7 +321,11 @@ def api_create_admin_account():
     # 1. 檢查是否已經登入 (防護機制)
     if not session.get('admin_logged_in'):
         return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
-        
+
+    # 只有系統管理員 (admin) 可以建立廠商帳號，廠商帳號不行
+    if session.get('admin_username') != 'admin':
+        return jsonify({"status": "error", "message": "只有系統管理員可以建立廠商帳號"}), 403
+
     data = request.json
     new_username = data.get('username')
     new_password = data.get('password')
@@ -346,33 +358,41 @@ def api_create_admin_account():
 
 @app.route('/api/admin/reviews', methods=['GET'])
 def api_admin_get_reviews():
-    """讀取所有評價 (檢查 Session)"""
+    """讀取所有評價 (檢查 Session，只有系統管理員可以)"""
     if not session.get('admin_logged_in'):
         return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
+    if session.get('admin_username') != 'admin':
+        return jsonify({"status": "error", "message": "只有系統管理員可以管理評價"}), 403
     reviews = get_all_reviews_for_admin()
     return jsonify(reviews)
 
 @app.route('/api/admin/reviews/<int:review_id>', methods=['DELETE'])
 def api_admin_delete_review(review_id):
-    """刪除特定評價 (檢查 Session)"""
+    """刪除特定評價 (檢查 Session，只有系統管理員可以)"""
     if not session.get('admin_logged_in'):
         return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
+    if session.get('admin_username') != 'admin':
+        return jsonify({"status": "error", "message": "只有系統管理員可以管理評價"}), 403
     if delete_review_by_id(review_id):
         return jsonify({"status": "success", "message": "刪除成功"})
     return jsonify({"status": "error", "message": "刪除失敗"}), 500
 
 @app.route('/api/admin/coupons', methods=['GET'])
 def api_admin_get_coupons():
-    """讀取折價券清單 (檢查 Session)"""
-    if not session.get('admin_logged_in'):
+    """讀取折價券清單 (檢查 Session)：系統管理員看全部，廠商只看自己發布的"""
+    if not session.get('admin_logged_in') or not session.get('admin_id'):
         return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
-    coupons = get_all_coupons()
+
+    if session.get('admin_username') == 'admin':
+        coupons = get_all_coupons()
+    else:
+        coupons = get_all_coupons(session.get('admin_id'))
     return jsonify(coupons)
 
 @app.route('/api/admin/coupons', methods=['POST'])
 def api_add_coupon():
-    """發布新折價券 (檢查 Session)"""
-    if not session.get('admin_logged_in'):
+    """發布新折價券 (檢查 Session)，並記錄是哪個廠商帳號發布的"""
+    if not session.get('admin_logged_in') or not session.get('admin_id'):
         return jsonify({"status": "error", "message": "無權限存取，請先登入"}), 401
         
     data = request.json
@@ -384,7 +404,7 @@ def api_add_coupon():
     if not quantity or not isinstance(quantity, int) or quantity <= 0:
         return jsonify({"status": "error", "message": "發布失敗：請設定正確的發放數量！"}), 400
 
-    if add_coupon(vendor_name, coupon_text, target_keyword, quantity):
+    if add_coupon(vendor_name, coupon_text, target_keyword, quantity, session.get('admin_id')):
         return jsonify({"status": "success", "message": "折價券發布成功"})
     return jsonify({"status": "error", "message": "發布失敗，請稍後再試"}), 500
 
