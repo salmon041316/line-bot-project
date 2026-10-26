@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>資料庫關聯圖與 Meta Data</title>
+<style>
+  :root {
+    --bg: #ffffff; --ink: #1f2937; --muted: #6b7280; --line: #d1d5db;
+    --head: #769382; --head-ink: #ffffff; --soft: #f3f6f4; --rt: #b0793a; --rel: #4b6b8a;
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; line-height: 1.5; }
+  main { max-width: 1120px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--head); }
+  h3 { font-size: 17px; margin: 28px 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .diagram { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .diagram svg { display: block; min-width: 900px; width: 100%; height: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; margin-bottom: 8px; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  thead th { background: var(--soft); }
+  .info th { width: 140px; background: var(--soft); }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; border: 1px solid; }
+  .tag.file { color: var(--head); }
+  .tag.rt { color: var(--rt); }
+  .note { font-size: 13px; color: var(--muted); }
+  ul { padding-left: 20px; }
+  .wrap { overflow-x: auto; }
+  .wrap table { min-width: 760px; }
+  .tag { white-space: nowrap; }
+  .cap { text-align: center; font-weight: 700; margin: 28px 0 6px; }
+  table.meta { min-width: 600px; }
+  table.meta thead th { background: #1f5fa8; color: #fff; text-align: center; }
+  table.meta tbody tr:nth-child(even) td { background: #f3f4f6; }
+</style>
+</head>
+<body>
+<main>
+  <h1>找廁所 LINE Bot：資料庫關聯圖與 Meta Data</h1>
+  <p class="sub">資料來源：bot_data.db（SQLite）。另有 3 張表沒有存在本地檔案中，是程式在伺服器上執行時才建立的，一併列出。</p>
+
+  <h2>一、資料庫關聯圖（ER Diagram）</h2>
+  <div class="diagram">
+  <svg viewBox="0 0 1090 720"xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif" font-size="13">
+    <defs>
+      <style>
+        .box { fill: #fff; stroke: #769382; stroke-width: 1.5; }
+        .box.rt { stroke: #b0793a; stroke-dasharray: 6 4; }
+        .hd { fill: #769382; } .hd.rt { fill: #b0793a; }
+        .hdt { fill: #fff; font-weight: 700; font-size: 14px; }
+        .row { fill: #1f2937; } .ty { fill: #6b7280; font-size: 12px; }
+        .pk { fill: #b45309; font-weight: 700; font-size: 11px; }
+        .fk { fill: #2563eb; font-weight: 700; font-size: 11px; }
+        .sep { stroke: #e5e7eb; }
+        .rel { fill: none; stroke: #4b6b8a; stroke-width: 1.5; stroke-dasharray: 5 3; }
+        .card { fill: #4b6b8a; font-weight: 700; font-size: 12px; }
+        .ext { fill: #f3f6f4; stroke: #6b7280; stroke-width: 1.5; stroke-dasharray: 3 3; }
+      </style>
+    </defs>
+
+    <!-- 關聯線 -->
+    <!-- toilets.name → reviews.toilet_name / favorites.toilet_id -->
+    <path class="rel" d="M290 171 H345 V287 H400"/>
+    <path class="rel" d="M345 287 V507 H400"/>
+    <text class="card" x="296" y="165">1</text>
+    <text class="card" x="386" y="281">N</text>
+    <text class="card" x="386" y="501">N</text>
+    <!-- LINE 使用者 → reviews / favorites / user_coupons -->
+    <path class="rel" d="M715 94 V485 H650"/>
+    <path class="rel" d="M715 265 H650"/>
+    <path class="rel" d="M715 265 H780"/>
+    <text class="card" x="721" y="110">1</text>
+    <text class="card" x="656" y="259">N</text>
+    <text class="card" x="656" y="479">N</text>
+    <text class="card" x="766" y="259">N</text>
+    <!-- coupons.id → user_coupons.coupon_id -->
+    <path class="rel" d="M1030 463 H1065 V287 H1030"/>
+    <text class="card" x="1038" y="457">1</text>
+    <text class="card" x="1038" y="281">N</text>
+    <!-- admins.id → coupons.admin_id -->
+    <path class="rel" d="M290 483 H325 V630 H760 V485 H780"/>
+    <text class="card" x="296" y="477">1</text>
+    <text class="card" x="766" y="479">N</text>
+
+    <!-- toilets -->
+    <g transform="translate(30,40)">
+      <rect class="box" width="260" height="340" rx="6"/>
+      <path class="hd" d="M6 0 H254 A6 6 0 0 1 260 6 V32 H0 V6 A6 6 0 0 1 6 0 Z"/>
+      <text class="hdt" x="12" y="21">toilets（公廁主資料）</text>
+      <g transform="translate(0,32)">
+        <text class="row" x="12" y="15">county</text><text class="ty" x="248" y="15" text-anchor="end">INTEGER</text>
+        <text class="row" x="12" y="37">areacode</text><text class="ty" x="248" y="37" text-anchor="end">INTEGER</text>
+        <text class="row" x="12" y="59">village</text><text class="ty" x="248" y="59" text-anchor="end">TEXT</text>
+        <text class="pk" x="12" y="81">UK</text><text class="row" x="36" y="81">number</text><text class="ty" x="248" y="81" text-anchor="end">TEXT</text>
+        <text class="row" x="12" y="103" font-weight="700">name</text><text class="ty" x="248" y="103" text-anchor="end">TEXT</text>
+        <text class="row" x="12" y="125">address</text><text class="ty" x="248" y="125" text-anchor="end">TEXT</text>
+        <text class="row" x="12" y="147">administration</text><text class="ty" x="248" y="147" text-anchor="end">TEXT</text>
+        <text class="row" x="12" y="169">latitude</text><text class="ty" x="248" y="169" text-anchor="end">REAL</text>
+        <text class="row" x="12" y="191">longitude</text><text class="ty" x="248" y="191" text-anchor="end">REAL</text>
+        <text class="row" x="12" y="213">grade</text><text class="ty" x="248" y="213" text-anchor="end">TEXT</text>
+        <text class="row" x="12" y="235">type2</text><text class="ty" x="248" y="235" text-anchor="end">TEXT</text>
+        <text class="row" x="12" y="257">type</text><text class="ty" x="248" y="257" text-anchor="end">TEXT</text>
+        <text class="row" x="12" y="279">exec</text><text class="ty" x="248" y="279" text-anchor="end">TEXT</text>
+        <text class="row" x="12" y="301">diaper</text><text class="ty" x="248" y="301" text-anchor="end">INTEGER</text>
+      </g>
+    </g>
+
+    <!-- admins -->
+    <g transform="translate(30,440)">
+      <rect class="box rt" width="260" height="98" rx="6"/>
+      <path class="hd rt" d="M6 0 H254 A6 6 0 0 1 260 6 V32 H0 V6 A6 6 0 0 1 6 0 Z"/>
+      <text class="hdt" x="12" y="21">admins（管理員與廠商帳號）</text>
+      <g transform="translate(0,32)">
+        <text class="pk" x="12" y="15">PK</text><text class="row" x="36" y="15">id</text><text class="ty" x="248" y="15" text-anchor="end">INTEGER</text>
+        <text class="pk" x="12" y="37">UK</text><text class="row" x="36" y="37">username</text><text class="ty" x="248" y="37" text-anchor="end">TEXT</text>
+        <text class="row" x="36" y="59">password_hash</text><text class="ty" x="248" y="59" text-anchor="end">TEXT</text>
+      </g>
+    </g>
+
+    <!-- LINE 使用者（外部實體） -->
+    <g transform="translate(600,40)">
+      <rect class="ext" width="230" height="54" rx="6"/>
+      <text x="12" y="21" font-weight="700" fill="#374151">LINE 使用者（外部）</text>
+      <text class="row" x="12" y="43">user_id</text><text class="ty" x="218" y="43" text-anchor="end">LINE userId</text>
+    </g>
+
+    <!-- reviews -->
+    <g transform="translate(400,200)">
+      <rect class="box" width="250" height="164" rx="6"/>
+      <path class="hd" d="M6 0 H244 A6 6 0 0 1 250 6 V32 H0 V6 A6 6 0 0 1 6 0 Z"/>
+      <text class="hdt" x="12" y="21">reviews（評價）</text>
+      <g transform="translate(0,32)">
+        <text class="pk" x="12" y="15">PK</text><text class="row" x="36" y="15">id</text><text class="ty" x="238" y="15" text-anchor="end">INTEGER</text>
+        <text class="fk" x="12" y="37">FK</text><text class="row" x="36" y="37">user_id</text><text class="ty" x="238" y="37" text-anchor="end">TEXT</text>
+        <text class="fk" x="12" y="59">FK</text><text class="row" x="36" y="59">toilet_name</text><text class="ty" x="238" y="59" text-anchor="end">TEXT</text>
+        <text class="row" x="36" y="81">stars</text><text class="ty" x="238" y="81" text-anchor="end">INTEGER</text>
+        <text class="row" x="36" y="103">comment</text><text class="ty" x="238" y="103" text-anchor="end">TEXT</text>
+        <text class="row" x="36" y="125">created_at</text><text class="ty" x="238" y="125" text-anchor="end">TIMESTAMP</text>
+      </g>
+    </g>
+
+    <!-- favorites -->
+    <g transform="translate(400,420)">
+      <rect class="box" width="250" height="98" rx="6"/>
+      <path class="hd" d="M6 0 H244 A6 6 0 0 1 250 6 V32 H0 V6 A6 6 0 0 1 6 0 Z"/>
+      <text class="hdt" x="12" y="21">favorites（收藏）</text>
+      <g transform="translate(0,32)">
+        <text class="pk" x="12" y="15">PK</text><text class="row" x="36" y="15">id</text><text class="ty" x="238" y="15" text-anchor="end">INTEGER</text>
+        <text class="fk" x="12" y="37">FK</text><text class="row" x="36" y="37">user_id</text><text class="ty" x="238" y="37" text-anchor="end">TEXT</text>
+        <text class="fk" x="12" y="59">FK</text><text class="row" x="36" y="59">toilet_id</text><text class="ty" x="238" y="59" text-anchor="end">INTEGER</text>
+      </g>
+    </g>
+
+    <!-- user_coupons -->
+    <g transform="translate(780,200)">
+      <rect class="box rt" width="250" height="164" rx="6"/>
+      <path class="hd rt" d="M6 0 H244 A6 6 0 0 1 250 6 V32 H0 V6 A6 6 0 0 1 6 0 Z"/>
+      <text class="hdt" x="12" y="21">user_coupons（使用者錢包）</text>
+      <g transform="translate(0,32)">
+        <text class="pk" x="12" y="15">PK</text><text class="row" x="36" y="15">id</text><text class="ty" x="238" y="15" text-anchor="end">INTEGER</text>
+        <text class="fk" x="12" y="37">FK</text><text class="row" x="36" y="37">user_id</text><text class="ty" x="238" y="37" text-anchor="end">TEXT</text>
+        <text class="fk" x="12" y="59">FK</text><text class="row" x="36" y="59">coupon_id</text><text class="ty" x="238" y="59" text-anchor="end">INTEGER</text>
+        <text class="pk" x="12" y="81">UK</text><text class="row" x="36" y="81">serial_code</text><text class="ty" x="238" y="81" text-anchor="end">TEXT</text>
+        <text class="row" x="36" y="103">is_used</text><text class="ty" x="238" y="103" text-anchor="end">BOOLEAN</text>
+        <text class="row" x="36" y="125">created_at</text><text class="ty" x="238" y="125" text-anchor="end">TIMESTAMP</text>
+      </g>
+    </g>
+
+    <!-- coupons -->
+    <g transform="translate(780,420)">
+      <rect class="box rt" width="250" height="186" rx="6"/>
+      <path class="hd rt" d="M6 0 H244 A6 6 0 0 1 250 6 V32 H0 V6 A6 6 0 0 1 6 0 Z"/>
+      <text class="hdt" x="12" y="21">coupons（折價券）</text>
+      <g transform="translate(0,32)">
+        <text class="pk" x="12" y="15">PK</text><text class="row" x="36" y="15">id</text><text class="ty" x="238" y="15" text-anchor="end">INTEGER</text>
+        <text class="fk" x="12" y="37">FK</text><text class="row" x="36" y="37">admin_id</text><text class="ty" x="238" y="37" text-anchor="end">INTEGER</text>
+        <text class="row" x="36" y="59">vendor_name</text><text class="ty" x="238" y="59" text-anchor="end">TEXT</text>
+        <text class="row" x="36" y="81">coupon_text</text><text class="ty" x="238" y="81" text-anchor="end">TEXT</text>
+        <text class="row" x="36" y="103">target_keyword</text><text class="ty" x="238" y="103" text-anchor="end">TEXT</text>
+        <text class="row" x="36" y="125">total_quantity</text><text class="ty" x="238" y="125" text-anchor="end">INTEGER</text>
+        <text class="row" x="36" y="147">remaining_quantity</text><text class="ty" x="238" y="147" text-anchor="end">INTEGER</text>
+      </g>
+    </g>
+
+    <!-- 圖例 -->
+    <g transform="translate(30,660)" font-size="12">
+      <rect x="0" y="0" width="22" height="14" fill="#fff" stroke="#769382" stroke-width="1.5"/>
+      <text x="30" y="11" fill="#374151">本地 bot_data.db 中已存在的表</text>
+      <rect x="230" y="0" width="22" height="14" fill="#fff" stroke="#b0793a" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <text x="260" y="11" fill="#374151">程式執行時才建立的表</text>
+      <line x1="440" y1="7" x2="480" y2="7" stroke="#4b6b8a" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <text x="488" y="11" fill="#374151">邏輯關聯（1 對 N，程式中以欄位值對應，未設外鍵約束）</text>
+      <text x="0" y="40" fill="#374151"><tspan class="pk">PK</tspan> 主鍵　<tspan class="pk">UK</tspan> 唯一值　<tspan class="fk">FK</tspan> 邏輯外鍵</text>
+    </g>
+  </svg>
+  </div>
+
+  <h3>關聯說明</h3>
+  <div class="wrap">
+  <table>
+    <thead><tr><th>主表（1）</th><th>關聯欄位</th><th>子表（N）</th><th>關聯欄位</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr><td>toilets</td><td>name</td><td>reviews</td><td>toilet_name</td><td>一間廁所可有多筆評價</td></tr>
+      <tr><td>toilets</td><td>name</td><td>favorites</td><td>toilet_id</td><td>一間廁所可被多位使用者收藏（程式存入的是廁所名稱）</td></tr>
+      <tr><td>LINE 使用者</td><td>user_id</td><td>reviews</td><td>user_id</td><td>一位使用者可留多筆評價，但同一間廁所只能評一次</td></tr>
+      <tr><td>LINE 使用者</td><td>user_id</td><td>favorites</td><td>user_id</td><td>一位使用者可收藏多間廁所</td></tr>
+      <tr><td>LINE 使用者</td><td>user_id</td><td>user_coupons</td><td>user_id</td><td>一位使用者可擁有多張折價券</td></tr>
+      <tr><td>coupons</td><td>id</td><td>user_coupons</td><td>coupon_id</td><td>一種折價券可發放給多位使用者，每張有唯一序號</td></tr>
+      <tr><td>admins</td><td>id</td><td>coupons</td><td>admin_id</td><td>一個廠商帳號可發布多種折價券，廠商只能看到自己發布的；系統管理員（admin）可看全部</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">系統沒有使用者資料表，使用者以 LINE userId 識別。</p>
+
+  <h2>二、資料表總覽</h2>
+  <div class="wrap">
+  <table>
+    <thead><tr><th>資料表名稱</th><th>中文名稱</th><th>欄位數</th><th>目前筆數</th><th>主鍵</th><th>建立程式</th><th>狀態</th></tr></thead>
+    <tbody>
+      <tr><td>toilets</td><td>公廁主資料</td><td>14</td><td>46,198</td><td>無（number 唯一）</td><td>由 toilets.csv 匯入</td><td><span class="tag file">本地檔已存在</span></td></tr>
+      <tr><td>reviews</td><td>評價</td><td>6</td><td>0</td><td>id</td><td>add_review_table.py、review_logic.py</td><td><span class="tag file">本地檔已存在</span></td></tr>
+      <tr><td>favorites</td><td>收藏</td><td>3</td><td>2（測試資料）</td><td>id</td><td>favorite_logic.py › init_db()</td><td><span class="tag file">本地檔已存在</span></td></tr>
+      <tr><td>coupons</td><td>折價券</td><td>7</td><td>—</td><td>id</td><td>review_logic.py › setup_coupons_table()</td><td><span class="tag rt">執行時建立</span></td></tr>
+      <tr><td>user_coupons</td><td>使用者錢包</td><td>6</td><td>—</td><td>id</td><td>review_logic.py › setup_user_coupons_table()</td><td><span class="tag rt">執行時建立</span></td></tr>
+      <tr><td>admins</td><td>管理員與廠商帳號</td><td>3</td><td>—</td><td>id</td><td>main.py › init_admin_account()、api_create_admin_account()</td><td><span class="tag rt">執行時建立</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>三、表格及其 Meta Data</h2>
+  <p class="cap">▼表 8-2-1、公廁主資料 toilets</p>
+  <div class="wrap">
+  <table class="meta">
+    <thead><tr><th>欄位名稱</th><th>意義</th><th>資料型態</th><th>備註說明</th></tr></thead>
+    <tbody>
+      <tr><td>county</td><td>縣市代碼</td><td>INTEGER</td><td>NULLABLE</td></tr>
+      <tr><td>areacode</td><td>鄉鎮市區代碼</td><td>INTEGER</td><td>NULLABLE</td></tr>
+      <tr><td>village</td><td>村里名稱</td><td>TEXT</td><td>NULLABLE</td></tr>
+      <tr><td>number</td><td>公廁編號</td><td>TEXT</td><td>UNIQUE, NULLABLE</td></tr>
+      <tr><td>name</td><td>公廁名稱</td><td>TEXT</td><td>NULLABLE，對應評價與收藏</td></tr>
+      <tr><td>address</td><td>地址</td><td>TEXT</td><td>NULLABLE</td></tr>
+      <tr><td>administration</td><td>管理單位</td><td>TEXT</td><td>NULLABLE</td></tr>
+      <tr><td>latitude</td><td>緯度</td><td>REAL</td><td>NULLABLE</td></tr>
+      <tr><td>longitude</td><td>經度</td><td>REAL</td><td>NULLABLE</td></tr>
+      <tr><td>grade</td><td>評鑑等級</td><td>TEXT</td><td>NULLABLE</td></tr>
+      <tr><td>type2</td><td>場所類別</td><td>TEXT</td><td>NULLABLE</td></tr>
+      <tr><td>type</td><td>廁所類型</td><td>TEXT</td><td>NULLABLE</td></tr>
+      <tr><td>exec</td><td>權責單位</td><td>TEXT</td><td>NULLABLE</td></tr>
+      <tr><td>diaper</td><td>尿布台數量</td><td>INTEGER</td><td>NULLABLE</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="cap">▼表 8-2-2、評價 reviews</p>
+  <div class="wrap">
+  <table class="meta">
+    <thead><tr><th>欄位名稱</th><th>意義</th><th>資料型態</th><th>備註說明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>評價編號</td><td>INTEGER</td><td>PK, AUTOINCREMENT</td></tr>
+      <tr><td>user_id</td><td>留言者 LINE ID</td><td>TEXT</td><td>FK</td></tr>
+      <tr><td>toilet_name</td><td>廁所名稱</td><td>TEXT</td><td>FK（toilets.name）</td></tr>
+      <tr><td>stars</td><td>星等</td><td>INTEGER</td><td>1～5</td></tr>
+      <tr><td>comment</td><td>評論內容</td><td>TEXT</td><td>NULLABLE</td></tr>
+      <tr><td>created_at</td><td>留言時間</td><td>TIMESTAMP</td><td>DEFAULT CURRENT_TIMESTAMP</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="cap">▼表 8-2-3、收藏 favorites</p>
+  <div class="wrap">
+  <table class="meta">
+    <thead><tr><th>欄位名稱</th><th>意義</th><th>資料型態</th><th>備註說明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>收藏編號</td><td>INTEGER</td><td>PK, AUTOINCREMENT</td></tr>
+      <tr><td>user_id</td><td>收藏者 LINE ID</td><td>TEXT</td><td>FK</td></tr>
+      <tr><td>toilet_id</td><td>收藏的廁所</td><td>INTEGER</td><td>FK（toilets.name），實際存廁所名稱</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="cap">▼表 8-2-4、折價券 coupons</p>
+  <div class="wrap">
+  <table class="meta">
+    <thead><tr><th>欄位名稱</th><th>意義</th><th>資料型態</th><th>備註說明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>折價券編號</td><td>INTEGER</td><td>PK, AUTOINCREMENT</td></tr>
+      <tr><td>admin_id</td><td>發布帳號編號</td><td>INTEGER</td><td>FK（admins.id）, NULLABLE</td></tr>
+      <tr><td>vendor_name</td><td>廠商名稱</td><td>TEXT</td><td></td></tr>
+      <tr><td>coupon_text</td><td>優惠內容</td><td>TEXT</td><td></td></tr>
+      <tr><td>target_keyword</td><td>活動備註</td><td>TEXT</td><td></td></tr>
+      <tr><td>total_quantity</td><td>發行總數</td><td>INTEGER</td><td>DEFAULT 0</td></tr>
+      <tr><td>remaining_quantity</td><td>剩餘庫存</td><td>INTEGER</td><td>DEFAULT 0</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="cap">▼表 8-2-5、使用者錢包 user_coupons</p>
+  <div class="wrap">
+  <table class="meta">
+    <thead><tr><th>欄位名稱</th><th>意義</th><th>資料型態</th><th>備註說明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>錢包紀錄編號</td><td>INTEGER</td><td>PK, AUTOINCREMENT</td></tr>
+      <tr><td>user_id</td><td>獲得者 LINE ID</td><td>TEXT</td><td>FK</td></tr>
+      <tr><td>coupon_id</td><td>折價券編號</td><td>INTEGER</td><td>FK（coupons.id）</td></tr>
+      <tr><td>serial_code</td><td>兌換序號</td><td>TEXT</td><td>UNIQUE</td></tr>
+      <tr><td>is_used</td><td>是否已使用</td><td>BOOLEAN</td><td>DEFAULT 0</td></tr>
+      <tr><td>created_at</td><td>取得時間</td><td>TIMESTAMP</td><td>DEFAULT CURRENT_TIMESTAMP</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="cap">▼表 8-2-6、管理員與廠商帳號 admins</p>
+  <div class="wrap">
+  <table class="meta">
+    <thead><tr><th>欄位名稱</th><th>意義</th><th>資料型態</th><th>備註說明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>帳號編號</td><td>INTEGER</td><td>PK, AUTOINCREMENT</td></tr>
+      <tr><td>username</td><td>登入帳號</td><td>TEXT</td><td>UNIQUE</td></tr>
+      <tr><td>password_hash</td><td>加密密碼</td><td>TEXT</td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+</main>
+</body>
+</html>

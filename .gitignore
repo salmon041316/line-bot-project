@@ -1,0 +1,11 @@
+# macOS 系統檔
+.DS_Store
+
+# Python 虛擬環境與快取
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# 環境變數 (密碼、金鑰不可上傳)
+.env
