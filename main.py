@@ -238,8 +238,15 @@ def api_search_toilets():
 # 🛡️ 營運後台專區 (Session 憑證與密碼加密)
 # ==========================================
 
-# 🌟 設定 Session 必備的加密鑰匙 (絕對不能外流)
-app.secret_key = 'your_graduation_project_secret_key'
+# 🌟 設定 Session 必備的加密鑰匙 (絕對不能外流，改從雲端環境變數讀取)
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
+if not app.secret_key:
+    # 沒設定環境變數時 (例如本機測試)，臨時產生一組亂數鑰匙，伺服器重啟後需重新登入
+    print("⚠️ 未設定 FLASK_SECRET_KEY，使用臨時鑰匙")
+    app.secret_key = os.urandom(24)
+
+# 🌟 預設管理員密碼 (改從雲端環境變數讀取，不寫在程式裡)
+ADMIN_DEFAULT_PASSWORD = os.getenv('ADMIN_DEFAULT_PASSWORD')
 
 def init_admin_account():
     """【系統啟動時自動執行】建立管理員資料表與預設帳號"""
@@ -257,9 +264,12 @@ def init_admin_account():
         # 2. 檢查是否已經有 admin 這個帳號
         cursor.execute("SELECT * FROM admins WHERE username = 'admin'")
         if not cursor.fetchone():
-            # 3. 如果沒有，就建立預設帳號 (帳號: admin, 密碼: !QAZ2wsxadmin)
+            # 3. 如果沒有，就建立預設帳號 (帳號: admin, 密碼: 環境變數 ADMIN_DEFAULT_PASSWORD)
+            if not ADMIN_DEFAULT_PASSWORD:
+                print("⚠️ 未設定 ADMIN_DEFAULT_PASSWORD，略過建立預設管理員帳號")
+                return
             # 🌟 注意：存進資料庫的是 generate_password_hash 產生的一長串亂碼，不是明碼！
-            hashed_pwd = generate_password_hash('!QAZ2wsxadmin')
+            hashed_pwd = generate_password_hash(ADMIN_DEFAULT_PASSWORD)
             cursor.execute("INSERT INTO admins (username, password_hash) VALUES (?, ?)", ('admin', hashed_pwd))
             conn.commit()
     except Exception as e:
