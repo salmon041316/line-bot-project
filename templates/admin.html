@@ -17,7 +17,8 @@
     </div>
 
     <!-- ================= 登入區塊 ================= -->
-    <div class="container" id="loginSection" style="max-width: 400px; margin-top: 80px;">
+    <!-- 先隱藏，等確認登入狀態後再決定顯示登入畫面或後台 (避免重新整理時閃一下登入畫面) -->
+    <div class="container" id="loginSection" style="display: none; max-width: 400px; margin-top: 80px;">
         <div class="card shadow">
             <div class="card-header bg-white text-center pt-3 pb-3">
                 <h4 class="mb-0">🔐 管理員登入</h4>
@@ -125,20 +126,7 @@
                 
                 if (response.ok) {
                     const result = await response.json();
-                    // 依登入身分切換畫面：系統管理員可建立廠商帳號、管理評價，廠商只能管理自己的折價券
-                    isSuper = result.is_super;
-                    if (isSuper) {
-                        document.getElementById('welcomeText').innerText = "歡迎登入，系統管理員";
-                        document.getElementById('accountCard').style.display = 'block';
-                        document.getElementById('reviewCard').style.display = 'block';
-                    } else {
-                        document.getElementById('welcomeText').innerText = `歡迎登入，${result.username}`;
-                        document.getElementById('accountCard').style.display = 'none';
-                        document.getElementById('reviewCard').style.display = 'none';
-                    }
-                    document.getElementById('loginSection').style.display = 'none';
-                    document.getElementById('adminSection').style.display = 'block';
-                    refreshAllData();
+                    showAdminSection(result.username, result.is_super);
                 } else {
                     alert("❌ 帳號或密碼錯誤！");
                 }
@@ -146,6 +134,39 @@
                 alert("伺服器連線失敗，請稍後再試！");
             }
         }
+
+        // 依登入身分切換畫面：系統管理員可建立廠商帳號、管理評價，廠商只能管理自己的折價券
+        function showAdminSection(username, superUser) {
+            isSuper = superUser;
+            if (isSuper) {
+                document.getElementById('welcomeText').innerText = "歡迎登入，系統管理員";
+                document.getElementById('accountCard').style.display = 'block';
+                document.getElementById('reviewCard').style.display = 'block';
+            } else {
+                document.getElementById('welcomeText').innerText = `歡迎登入，${username}`;
+                document.getElementById('accountCard').style.display = 'none';
+                document.getElementById('reviewCard').style.display = 'none';
+            }
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('adminSection').style.display = 'block';
+            refreshAllData();
+        }
+
+        // 網頁載入時先檢查是否已登入 (重新整理不必再登入一次)
+        async function checkSession() {
+            try {
+                const res = await fetch('/api/session');
+                const result = await res.json();
+                if (result.logged_in) {
+                    showAdminSection(result.username, result.is_super);
+                    return;
+                }
+            } catch (err) {
+                console.error("檢查登入狀態失敗:", err);
+            }
+            document.getElementById('loginSection').style.display = 'block';
+        }
+        checkSession();
 
         // 2. 重新整理所有資料 (移除 pwd 參數)
         async function refreshAllData() {

@@ -323,6 +323,17 @@ def api_logout():
     session.clear()
     return jsonify({"status": "success"})
 
+@app.route('/api/session', methods=['GET'])
+def api_session():
+    """查詢目前的登入狀態，讓後台網頁重新整理後不必重新登入"""
+    if session.get('admin_logged_in') and session.get('admin_id'):
+        return jsonify({
+            "logged_in": True,
+            "username": session.get('admin_username'),
+            "is_super": session.get('admin_username') == 'admin'
+        })
+    return jsonify({"logged_in": False})
+
 # ---新增帳號密碼---
 
 @app.route('/api/admin/accounts', methods=['POST'])
